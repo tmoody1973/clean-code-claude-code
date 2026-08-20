@@ -185,6 +185,22 @@ class Security(unittest.TestCase):
         self.assertNotIn(self.KEY, json.dumps(r))
 
 
+class NotApplicable(unittest.TestCase):
+    def test_fully_na_category_has_null_score_not_100(self):
+        r = audit({"tool.py": "print(1)"}, profile="cli")
+        logging = next(c for c in r["categories"] if c["key"] == "Structured Logging & Observability")
+        self.assertFalse(logging["applicable"])
+        self.assertIsNone(logging["score"])
+
+    def test_env_example_not_required_when_no_env_reads(self):
+        r = audit({"tool.py": "print(1)"})
+        self.assertEqual(check(r, "sec-1")["status"], "n/a")
+
+    def test_env_example_required_when_code_reads_env(self):
+        r = audit({"app.py": "import os\nkey = os.environ['API_KEY']\n"})
+        self.assertEqual(check(r, "sec-1")["status"], "fail")
+
+
 class CiDetection(unittest.TestCase):
     def test_unittest_step_counts_as_running_tests(self):
         wf = "on: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: python -m unittest discover tests\n"

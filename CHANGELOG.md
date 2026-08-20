@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.2.2
+
+- Consistency patch, no new features.
+- A category whose checks are all n/a now reports `score: null` and shows `N/A`, never 100/100; the template only counts applicable categories as wins.
+- `.env.example` is required only when the code reads environment variables; otherwise the check is n/a.
+- Every remaining "add CI on launch day" phrase updated to "before the first shared or live deployment."
+- Profile docs and the code comment now match the code: language alone is `unknown`.
+- Example no longer says "no CI of any kind" or that a red check "cannot go live."
+- Fix-brief rule: existing paths must be verified; new paths are allowed, labeled as new, and justified by repo conventions.
+- Skill-level README reduced to a pointer so there is one place for user-facing docs.
+- Tests: 25.
+
 ## 3.2.1
 
 - Accuracy pass, no new features.

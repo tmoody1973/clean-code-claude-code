@@ -96,12 +96,13 @@ A simple trigger: the same day you connect Vercel, Fly, or Netlify, run the read
 ```markdown
 # GOING LIVE
 
-The day a project first goes live, add CI the same day. "Live" means a real
-person, a cron job, or another service now depends on it. Connecting a deploy
-platform (Vercel, Fly, Netlify, Convex prod) counts as that day.
+Add CI before a project's first shared or live deployment, and earlier if
+it already has real tests, a collaborator, or automatic deploys. "Live"
+means a real person, a cron job, or another service depends on it.
+Connecting a deploy platform (Vercel, Fly, Netlify, Convex prod) counts.
 
-- Before that day: do not nag about CI.
-- On that day, or whenever a live repo has no `.github/workflows/`: say so
+- Before then: do not add CI ceremony to a sketch.
+- At that point, or whenever a live repo has no `.github/workflows/`: say so
   once and offer the two-step fix. (1) A workflow that runs typecheck, tests,
   and build on every PR and push to `main`; prove it by breaking one test,
   watching it go red, then reverting. (2) Branch protection on `main`

@@ -110,11 +110,12 @@ that profile come back as `status: "n/a"` and are left out of the score.
 If the guess looks wrong for what the user described (e.g. they said
 "it's a CLI" but the profile is `web-app`), re-run with
 `--profile <kind>` before writing anything. Never list an `n/a` check as
-a finding or a win. When a known stack has no clear kind, the tool picks
-the stricter profile; when nothing at all is recognized it reports
-`unknown` and marks runtime checks "insufficient evidence" instead of
-failing them. Tell the user plainly that the scan could not identify the
-stack and ask what kind of project it is. Top-level fields that matter:
+a finding or a win. A detected framework or deploy surface implies
+`web-app` (strict). A language alone implies nothing, so the profile is
+`unknown` and runtime checks report "insufficient evidence" as `n/a`
+rather than failing. In that case tell the user plainly that the scan
+could not determine the project type and ask: web app, API, worker, CLI,
+or library. Then re-run with `--profile`. Top-level fields that matter:
 - `stack_fingerprint` — see step 4, this drives which adapter files to load.
 - `product_context` — echoes back whatever you passed via `--context`.
 - `categories` → each has `key`, `title`, `score`, and `checks`; each check has `id`, `title`, `status`
@@ -220,9 +221,12 @@ severity before starting the next phase"). Substance rules:
     unattended step. If a tool's only official setup path is interactive
     (e.g. Sentry's `@sentry/wizard`), either give the hand-written config
     equivalent or move it to the manual-steps list.
-  - Before an instruction references a specific file path, config key, or
-    command, confirm it actually exists in this repo's evidence/tree —
-    never assume a file exists because it's conventional for the stack.
+  - Existing paths must be verified: before an instruction references a
+    file, config key, or command as already present, confirm it is in the
+    JSON evidence or the tree. New paths are fine and often the point
+    (`.github/workflows/ci.yml`, `docs/runbooks/rollback.md`), but label
+    them as new and justify the location from the repo's own conventions,
+    not from what is typical for the stack.
   - Never assume a paid-tier or plan-gated platform feature (private-repo
     branch protection, arbitrary-deployment rollback on Vercel Hobby,
     etc.) is available — either confirm the plan first or flag it as a
@@ -281,7 +285,7 @@ of it; the tool does not run the app.
   product as a system; this one reads the repo's files.
 - Use `developer-handoff` when the goal is transferring the project, not
   fixing it. Findings from this audit belong in that handoff's risk list.
-- The going-live rule ("the day a project goes live, add CI the same day")
+- The going-live rule ("add CI before the first shared or live deployment")
   ships in `templates/CLAUDE.md` via `/add-clean-code`.
 
 ## Notes on the underlying tool

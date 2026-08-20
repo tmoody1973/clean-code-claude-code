@@ -20,11 +20,11 @@ This is a well-built storefront template with a pinned dependency setup, and the
 
 **What we checked:** Whether an automatic checker runs your tests every time code is pushed, before it can reach the live site.
 
-**What we found:** No `.github/workflows/` folder. No CI of any kind.
+**What we found:** No `.github/workflows/` folder, and no other CI config the scan recognizes. CI could exist outside the repo (an org-level pipeline, a host that runs checks), but nothing in the repo shows it.
 
 **Why it matters:** Every push that deploys is a push nobody tested on a clean machine. You find out from a shopper, not from a red X.
 
-**The concept, in one paragraph:** CI is a robot proofreader. On every push, a fresh computer downloads your project, installs it from scratch, runs your tests, and builds the app. If anything fails, the change gets a red X and cannot go live. The value is not that it does something you cannot do. It is that it never forgets to.
+**The concept, in one paragraph:** CI is a robot proofreader. On every push, a fresh computer downloads your project, installs it from scratch, runs your tests, and builds the app. If anything fails, the change gets a red X. The red X blocks a merge only once branch protection is turned on; until then it is a warning. The value is not that it does something you cannot do. It is that it never forgets to.
 
 **How urgent is this really?** Fix this first. It is one file and about 30 minutes.
 
