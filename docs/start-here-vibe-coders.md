@@ -15,6 +15,7 @@ This toolkit gives you a safer loop:
 | You want to… | Use | What happens |
 |---|---|---|
 | Understand code quality | “Review my code in plain English” | Reports important findings; changes nothing |
+| Know what is missing before going live | “Audit this repo for production readiness” | Scans CI, logging, secrets, rollback, tests; explains each gap and gives a phased fix list; changes nothing |
 | Know whether the product is launch-ready | “Run a product-readiness review” | Checks product and operational risks; changes nothing |
 | See a quick cleanup list | `/code-smells` | Runs available tools and reports contextual smells |
 | Tidy one file | “Use boy-scout-cleanup on this file” | Makes 3–5 small verified changes |

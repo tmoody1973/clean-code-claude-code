@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.1.0
+
+- Add `prod-readiness-coach`: a script-backed production-readiness scan with stack detection, project profiles, confidence labels on text-match findings, a plain-English audit, and a phase-gated fix brief. Moved in from `tmoody1973/prod-readiness-coach` with history.
+- Add a "Going live" section to the always-on template: add CI the day a project goes live, prove it with a failing test, require the check via branch protection.
+- Document the split between `prod-readiness-coach` (repeatable repo scan, run first) and `product-readiness-review` (product judgment, run after).
+- Run the coach's unit tests in continuous validation.
+
 ## 3.0.0
 
 - Package the repository as a Claude Code plugin and GitHub marketplace.

@@ -1,6 +1,6 @@
 # Clean Code Toolkit for Claude Code
 
-Practical guardrails for people building products with AI-assisted coding. The toolkit helps you improve implementation quality, assess whether the product is actually ready, and prepare a repository for an incoming developer.
+Practical guardrails for people building products with AI-assisted coding. The toolkit helps you improve implementation quality, find out whether the repo and the product are actually ready, and prepare a repository for an incoming developer.
 
 [![Validate toolkit](https://github.com/tmoody1973/clean-code-claude-code/actions/workflows/validate.yml/badge.svg)](https://github.com/tmoody1973/clean-code-claude-code/actions/workflows/validate.yml)
 
@@ -11,7 +11,8 @@ Clean code is not a score or a rigid set of line limits. In this toolkit, correc
 | Tool | Mode | Use it when you want to… |
 |---|---|---|
 | `clean-code-review` | Read-only skill | Review correctness, clarity, maintainability, tests, and handoff gaps |
-| `product-readiness-review` | Read-only skill | Assess readiness for users, launch, production, or due diligence |
+| `prod-readiness-coach` | Read-only skill + script | Scan a repo for CI, logging, secrets, rollback, and test gaps; get a plain-English audit and a phased fix brief |
+| `product-readiness-review` | Read-only skill | Judge whether the product works for its users, launch, production, or due diligence |
 | `developer-handoff` | Documentation skill | Create a factual guide for an incoming developer |
 | `boy-scout-cleanup` | Editing skill | Make 3–5 small, behavior-preserving improvements |
 | `clean-code-scaffold` | Editing skill | Structure a project using its real framework conventions |

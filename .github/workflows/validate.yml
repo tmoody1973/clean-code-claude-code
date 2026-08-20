@@ -22,3 +22,9 @@ jobs:
 
       - name: Validate skills, manifests, and installer
         run: ./scripts/validate-toolkit.sh
+
+      - name: Run prod-readiness-coach tests
+        run: python -m unittest discover skills/prod-readiness-coach/tests
+
+      - name: Coach audits this repository
+        run: python skills/prod-readiness-coach/scripts/prod_audit.py --repo . --profile library --fail-on critical --output /dev/null
