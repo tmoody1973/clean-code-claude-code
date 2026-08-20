@@ -26,8 +26,10 @@ turn a small bug into a multi-hour mystery."}}
 
 ## What's already solid ✅
 
-{{For every category that scored 90+ with no failing checks, one bullet
-each, named warmly. E.g. "**Your secrets are safe.** You're not
+{{For every category with `applicable: true` that scored 90+ with no
+failing checks, one bullet each, named warmly. A category whose checks
+are all `n/a` has `score: null`; it is neither a win nor a gap, so leave
+it out. E.g. "**Your secrets are safe.** You're not
 accidentally leaking passwords or API keys into your code — a mistake even
 experienced teams make. Nice work."}}
 

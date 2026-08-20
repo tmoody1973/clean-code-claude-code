@@ -87,9 +87,9 @@ class CheckResult:
 WEAK_PASS_IDS = {"log-4", "res-3", "sec-4"}
 
 # What kind of thing the repo is. A check that does not apply to the profile
-# is reported as "n/a" and left out of the score. When the guess is unsure
-# we pick the stricter profile (web-app): a false failure is cheaper than a
-# skipped real check.
+# is reported as "n/a" and left out of the score. A framework or deploy
+# surface implies web-app (strict). A language alone implies nothing, so the
+# profile is "unknown" and runtime checks report insufficient evidence.
 PROFILES = ("web-app", "api", "worker", "cli", "library", "unknown")
 _SERVICE_ONLY = {"log-3", "res-3"}                       # needs an HTTP surface
 _DEPLOYED_ONLY = {"log-1", "log-2", "log-4", "res-1", "res-2", "res-4", "res-5",
@@ -803,17 +803,27 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
     results = []
 
     env_example = repo.exists(".env.example", ".env.sample", ".env.template", "env.example")
-    results.append(CheckResult(
+    reads_env = bool(repo.grep(r"process\.env\.|os\.environ|os\.getenv|import\.meta\.env|Deno\.env|System\.getenv|ENV\[|os\.Getenv")) \
+        or bool(repo.untracked_files() and any(f.startswith(".env") for f in repo.untracked_files()))
+    if not reads_env and not env_example:
+        results.append(CheckResult(
+            "sec-1", "Secrets & Environment Management", "Environment variable template committed",
+            "n/a", "info",
+            "No environment-variable reads detected, so a template is not required.",
+            best_practice_ref=ref,
+        ))
+    else:
+      results.append(CheckResult(
         "sec-1", "Secrets & Environment Management", "Environment variable template committed",
         "pass" if env_example else "fail",
         "info" if env_example else "medium",
         f"Found {env_example}." if env_example else
-        "No .env.example / .env.sample template found.",
+        "The code reads environment variables but no .env.example / .env.sample template was found.",
         "" if env_example else "Commit a .env.example listing required variable "
         "names (no real values) so new environments/contributors can be "
         "provisioned without guessing configuration.",
         best_practice_ref=ref,
-    ))
+      ))
 
     gitignore = repo.read(".gitignore")
     ignores_env = bool(re.search(r"^\.env", gitignore, re.MULTILINE))
@@ -1445,7 +1455,8 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         fails = [c for c in cat.checks if c.status == "fail"]
         crit = sum(1 for c in fails if c.severity == "critical")
         hi = sum(1 for c in fails if c.severity == "high")
-        lines.append(f"| {cat.title} | {cat.score}/100 | {crit} | {hi} | {len(fails)} |")
+        score_cell = f"{cat.score}/100" if cat.applicable else "N/A"
+        lines.append(f"| {cat.title} | {score_cell} | {crit} | {hi} | {len(fails)} |")
     lines.append("")
 
     if blocking:
@@ -1536,7 +1547,8 @@ def render_json(categories: list[Category], repo_name: str, fp: Optional[StackFi
             {
                 "key": cat.key,
                 "title": cat.title,
-                "score": cat.score,
+                "score": cat.score if cat.applicable else None,
+                "applicable": cat.applicable,
                 "checks": [asdict(c) for c in cat.checks],
             }
             for cat in categories
