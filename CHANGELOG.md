@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.2.3
+
+- Bug fix from a real repo: monorepos were read as if only the root `package.json` existed. Workspace members (`apps/*`, `packages/*`, `services/*`) now contribute dependencies, scripts, and platform config (`vercel.json`, `fly.toml`, `netlify.toml`, `wrangler.*`, `render.yaml`, `Procfile`, `convex/schema.*`).
+- A Dockerfile inside one workspace member no longer blocks the Vercel inference for a Next.js app in another.
+- Found on `tmoody1973/annotated`: before, frameworks `[]` and no adapters; after, Next.js + Convex + Fastify, surfaces Vercel + Fly + Convex, all three adapters, multi-surface rollback finding raised.
+- Tests: 27.
+
 ## 3.2.2
 
 - Consistency patch, no new features.
