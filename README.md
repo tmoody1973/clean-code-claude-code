@@ -39,6 +39,8 @@ You do not need to remember tool names. Ask what you want and Claude picks the t
 | Hand the project to a developer | "Prepare a developer handoff" | A guide that says what the app does, how to run it, what is fragile, and what is unknown. |
 | Make Claude follow these rules every session | `/add-clean-code` | Adds a short set of standards to your project's `CLAUDE.md`. After that Claude applies them without being asked. |
 
+Want to see what the audit looks like before you run it? Read the [example on vercel/commerce](docs/examples/vercel-commerce-plain-english-excerpt.md): a real public repo, a D grade, and why.
+
 Start with the rows that say "changes nothing." Read what they find. Decide what matters to your users. Only then ask Claude to change code.
 
 ## A week with the toolkit
