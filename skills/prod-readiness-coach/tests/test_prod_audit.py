@@ -201,6 +201,40 @@ class NotApplicable(unittest.TestCase):
         self.assertEqual(check(r, "sec-1")["status"], "fail")
 
 
+class Monorepo(unittest.TestCase):
+    def test_workspace_members_contribute_frameworks_and_adapters(self):
+        r = audit({
+            "package.json": json.dumps({"name": "root", "private": True, "devDependencies": {"turbo": "2"}}),
+            "pnpm-workspace.yaml": "packages:\n  - apps/*\n  - packages/*\n",
+            "pnpm-lock.yaml": "",
+            "apps/web/package.json": json.dumps({"dependencies": {"next": "15", "convex": "1"}, "scripts": {"test": "vitest"}}),
+            "apps/web/vercel.json": "{}",
+            "packages/backend/convex/schema.ts": "export default {}",
+        })
+        fp = r["stack_fingerprint"]
+        self.assertIn("nextjs", fp["frameworks"])
+        self.assertIn("convex", fp["frameworks"])
+        self.assertIn("vercel", fp["deploy_surfaces"])
+        self.assertIn("nextjs-vercel", fp["adapters_matched"])
+        self.assertIn("convex", fp["adapters_matched"])
+        self.assertTrue(fp["multi_surface"])
+        self.assertEqual(fp["profile"], "web-app")
+
+    def test_worker_dockerfile_in_member_does_not_block_vercel_inference(self):
+        r = audit({
+            "package.json": json.dumps({"name": "root", "private": True, "workspaces": ["apps/*"]}),
+            "package-lock.json": "{}",
+            "apps/web/package.json": json.dumps({"dependencies": {"next": "15"}}),
+            "apps/worker/package.json": json.dumps({"dependencies": {"fastify": "5"}}),
+            "apps/worker/Dockerfile": "FROM node:20",
+            "apps/worker/fly.toml": "app = 'worker'",
+        })
+        fp = r["stack_fingerprint"]
+        self.assertIn("fly", fp["deploy_surfaces"])
+        self.assertIn("vercel", fp["deploy_surfaces"])
+        self.assertTrue(fp["multi_surface"])
+
+
 class CiDetection(unittest.TestCase):
     def test_unittest_step_counts_as_running_tests(self):
         wf = "on: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: python -m unittest discover tests\n"

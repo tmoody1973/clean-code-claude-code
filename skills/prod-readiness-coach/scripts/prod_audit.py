@@ -156,6 +156,7 @@ class Repo:
     def __init__(self, root: Path):
         self.root = root.resolve()
         self._git_files: Optional[list[str]] = None
+        self._pkg_cache: Optional[dict] = None
 
     def is_git_repo(self) -> bool:
         return (self.root / ".git").exists()
@@ -251,14 +252,38 @@ class Repo:
                     hits.append((f, line.strip()[:160]) if not with_lineno else (f, lineno, line))
         return hits
 
+    def _read_json(self, relpath: str) -> dict:
+        try:
+            return json.loads(self.read(relpath)) if (self.root / relpath).exists() else {}
+        except Exception:
+            return {}
+
+    def workspace_package_files(self) -> list[str]:
+        """package.json files of workspace members in a monorepo (pnpm/turbo/npm/yarn workspaces)."""
+        root = self._read_json("package.json")
+        is_monorepo = bool(root.get("workspaces")) or self.exists("pnpm-workspace.yaml", "turbo.json", "lerna.json", "nx.json")
+        if not is_monorepo:
+            return []
+        return [f for f in self.find_any(["apps/*/package.json", "packages/*/package.json", "services/*/package.json"])
+                if "node_modules" not in f]
+
     def package_json(self) -> dict:
-        for candidate in ("package.json",):
-            if (self.root / candidate).exists():
-                try:
-                    return json.loads(self.read(candidate))
-                except Exception:
-                    return {}
-        return {}
+        """Root package.json, with workspace members' dependencies and scripts merged in.
+        A monorepo's frameworks live in apps/* and packages/*, not at the root."""
+        if self._pkg_cache is not None:
+            return self._pkg_cache
+        root = self._read_json("package.json")
+        merged = dict(root)
+        for key in ("dependencies", "devDependencies", "scripts"):
+            merged[key] = dict(root.get(key, {}))
+        for f in self.workspace_package_files():
+            member = self._read_json(f)
+            for key in ("dependencies", "devDependencies"):
+                merged[key] = {**member.get(key, {}), **merged[key]}
+            for name, cmd in member.get("scripts", {}).items():
+                merged["scripts"].setdefault(name, cmd)
+        self._pkg_cache = merged
+        return merged
 
     def requirements_text(self) -> str:
         parts = []
@@ -372,29 +397,31 @@ def detect_stack_fingerprint(repo: Repo) -> StackFingerprint:
             fp.frameworks.append(fw)
 
     # --- Deploy surfaces ------------------------------------------------
-    if repo.exists("vercel.json") or repo.exists(".vercel") or "vercel-build" in pkg.get("scripts", {}):
-        fp.add_surface("vercel", repo.exists("vercel.json", ".vercel") or "package.json scripts.vercel-build")
-    if repo.exists("netlify.toml"):
-        fp.add_surface("netlify", "netlify.toml")
-    if repo.exists("fly.toml"):
-        fp.add_surface("fly", "fly.toml")
-    if repo.exists("wrangler.toml", "wrangler.jsonc", "wrangler.json"):
-        fp.add_surface("cloudflare-workers", repo.exists("wrangler.toml", "wrangler.jsonc", "wrangler.json"))
-    if repo.exists("render.yaml"):
-        fp.add_surface("render", "render.yaml")
-    if repo.exists("Procfile"):
-        fp.add_surface("heroku", "Procfile")
+    member_vercel = repo.find_any(["apps/*/vercel.json", "packages/*/vercel.json"])
+    if repo.exists("vercel.json") or repo.exists(".vercel") or member_vercel or "vercel-build" in pkg.get("scripts", {}):
+        fp.add_surface("vercel", repo.exists("vercel.json", ".vercel") or (member_vercel[0] if member_vercel else "package.json scripts.vercel-build"))
+    def anywhere(*names: str) -> list[str]:
+        """Root or a workspace member (apps/*, packages/*, services/*)."""
+        pats = list(names) + [f"{d}/*/{n}" for d in ("apps", "packages", "services") for n in names]
+        return repo.find_any(pats)
+    for surface, names in (("netlify", ("netlify.toml",)), ("fly", ("fly.toml",)),
+                           ("cloudflare-workers", ("wrangler.toml", "wrangler.jsonc", "wrangler.json")),
+                           ("render", ("render.yaml",)), ("heroku", ("Procfile",))):
+        hits = anywhere(*names)
+        if hits:
+            fp.add_surface(surface, hits[0])
     dockerfiles = repo.find_any(["**/Dockerfile", "Dockerfile"])
     compose_files = repo.find_any(["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"])
     if dockerfiles or compose_files:
         fp.add_surface("docker", ", ".join(dockerfiles[:3] + compose_files[:2]))
-    if "convex" in fp.frameworks or repo.exists("convex/schema.ts", "convex/schema.js"):
+    convex_schema = repo.exists("convex/schema.ts", "convex/schema.js") or repo.find_any(["**/convex/schema.ts", "**/convex/schema.js"])
+    if "convex" in fp.frameworks or convex_schema:
         fp.add_surface("convex", "convex/ directory or convex dependency")
 
     # --- Runtimes -------------------------------------------------------
     if "convex" in fp.frameworks:
         fp.runtimes.append("convex-v8-isolate")
-        if repo.grep(r'^[\'"]use node[\'"]', paths=repo.find_any(["convex/**/*.ts", "convex/**/*.js"])):
+        if repo.grep(r'^[\'"]use node[\'"]', paths=repo.find_any(["**/convex/**/*.ts", "**/convex/**/*.js"])):
             fp.runtimes.append("convex-node")
     if "cloudflare-workers" in fp.deploy_surfaces:
         fp.runtimes.append("cloudflare-v8-isolate")
@@ -414,15 +441,17 @@ def detect_stack_fingerprint(repo: Repo) -> StackFingerprint:
         fp.migration_tooling.append("alembic")
     if repo.find_any(["db/migrate/*"]):
         fp.migration_tooling.append("rails-migrations")
-    if repo.exists("convex/schema.ts", "convex/schema.js"):
+    if convex_schema:
         fp.migration_tooling.append("convex-schema")
 
     # --- Multi-surface detection ------------------------------------------
     # Most Next.js apps on Vercel have no vercel.json. If Next.js is present and
     # no other frontend host was detected, assume Vercel (flagged as inferred).
-    if "nextjs" in fp.frameworks and not any(
-            sfc in fp.deploy_surfaces for sfc in ("vercel", "netlify", "fly", "cloudflare-workers", "render", "heroku", "docker")):
-        fp.add_surface("vercel", "inferred: Next.js with no other deploy config (confirm)")
+    root_docker = bool(repo.exists("Dockerfile", "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"))
+    frontend_hosts = ("vercel", "netlify", "cloudflare-workers", "render", "heroku")
+    if "nextjs" in fp.frameworks and not any(sfc in fp.deploy_surfaces for sfc in frontend_hosts) \
+            and not root_docker and not (repo.exists("fly.toml")):
+        fp.add_surface("vercel", "inferred: Next.js with no other frontend host config (confirm)")
 
     independently_deployable = {"vercel", "netlify", "fly", "cloudflare-workers", "render", "heroku", "convex"}
     matched_platforms = [s for s in fp.deploy_surfaces if s in independently_deployable]
