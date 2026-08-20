@@ -43,7 +43,7 @@ Build software that is correct, safe to change, and understandable to the next d
 
 ## Going live
 
-- The day a project first goes live, add CI the same day. "Live" means a real person, a scheduled job, or another service now depends on it; connecting a deploy platform counts.
+- Add CI before a project's first shared or live deployment, and earlier if it already has real tests, a collaborator, or automatic deploys. "Live" means a real person, a scheduled job, or another service depends on it; connecting a deploy platform counts.
 - Before that day, do not add CI ceremony to a sketch.
 - On that day, or whenever a live repo has no CI: add a workflow that runs typecheck, tests, and build on every pull request and push to `main`. Prove it by breaking one test, watching it fail, then reverting. Then require that check via branch protection, which is a manual settings step for the human.
 - Before a launch, schema change, or handoff, offer the `prod-readiness-coach` skill.

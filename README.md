@@ -73,9 +73,9 @@ Both ask "is it ready?" They answer different halves.
 
 Imagine a group essay in a shared doc. One night someone deletes a paragraph by mistake. Nobody notices. The teacher reads it in the morning. That is how most vibe-coded apps work: you push a change, it goes live, and if it is broken your users are the teacher.
 
-CI (short for "continuous integration," a name you can forget) is a robot that reads the essay after every edit, before the teacher sees it. Each time you push code, a fresh computer in the cloud wakes up, downloads your project, installs it from scratch, runs your tests, and tries to build the app. If any step fails you get a red X and the change cannot go live. If it passes, a green check. Then the computer is thrown away.
+CI (short for "continuous integration," a name you can forget) is a robot that reads the essay after every edit, before the teacher sees it. Each time you push code, a fresh computer in the cloud wakes up, downloads your project, installs it from scratch, runs your tests, and tries to build the app. If any step fails you get a red X. If it passes, a green check. On its own the red X is a warning. It only blocks a merge or a deploy once you turn on branch protection (covered below) or tell your host to wait for checks. Then the computer is thrown away.
 
-The fresh computer is the point. Your laptop has leftovers: old folders, forgotten settings. Code can work on your laptop because of a leftover and break everywhere else. The robot has no leftovers. If it works there, it works.
+The fresh computer is the point. Your laptop has leftovers: old folders, forgotten settings. Code can work on your laptop because of a leftover and break everywhere else. The robot has no leftovers. If it passes there, you have much better odds it works in production. Not proof, because production has its own settings and real users, but a far stronger signal than "it ran on my machine."
 
 Why it matters: you will forget to run tests. It will be late, the change will be "tiny," and you will skip it. The robot never skips. And a robot that only ever says "fine" is useless, so the first thing to do after adding CI is break one test on purpose, watch it go red, then fix it. That red X is the proof.
 
@@ -83,7 +83,7 @@ One habit matters more than the file: when CI is red, stop and look. Never merge
 
 ## The going-live rule
 
-Add CI the day your app first goes live. Not before: while you are sketching, tests change daily and the robot just slows you down. Not after: the moment a real person or a scheduled job depends on the app, a broken push has a real cost.
+Add CI before your app's first shared or live deployment, and earlier if you already have real tests, a collaborator, or automatic deploys. Not on day one of a sketch: tests change daily and the robot just slows you down. Never after launch: the moment a real person or a scheduled job depends on the app, a broken push has a real cost, and you want the safety net proven before that day, not on it.
 
 A simple trigger: the same day you connect Vercel, Fly, or Netlify, run the readiness coach. It will hand you the CI file. Then turn on branch protection in GitHub (Settings, Branches, add a rule for `main`, require the CI check) so the red X blocks a merge instead of just warning.
 
@@ -114,7 +114,7 @@ platform (Vercel, Fly, Netlify, Convex prod) counts as that day.
 
 - Claude Code 2.1.89 or newer.
 - `/add-clean-code` needs Bash and standard Unix tools, so macOS or Linux.
-- The readiness coach's script needs Python 3 (any recent version, no packages to install). Contributors need Python 3.9 or newer for the validator.
+- The readiness coach's script needs Python 3.9 or newer, no packages to install. It stops with a clear message on anything older. Contributors need the same for the validator.
 
 ## For developers and contributors
 
