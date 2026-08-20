@@ -32,6 +32,11 @@ pipeline on missing production-readiness configuration.
 
 from __future__ import annotations
 
+import sys as _sys
+if _sys.version_info < (3, 9):
+    _sys.stderr.write("prod_audit.py needs Python 3.9 or newer (found %d.%d).\n" % _sys.version_info[:2])
+    _sys.exit(2)
+
 import argparse
 import fnmatch
 import json
@@ -1299,8 +1304,8 @@ def guess_profile(repo: Repo, fp: StackFingerprint) -> str:
         return "cli"
     if fp.frameworks or fp.deploy_surfaces:
         return "web-app"  # something deploys or serves; stay strict
-    if fp.languages:
-        return "web-app"  # a known language but no framework: still strict
+    # A language alone (e.g. requirements.txt, package.json with no framework)
+    # does not tell us what kind of thing this is. Say so and ask.
     return "unknown"
 
 
@@ -1331,7 +1336,7 @@ def run_audit(repo_path: Path, profile: Optional[str] = None) -> tuple[list[Cate
                 c.confidence = "weak"
             if c.id in skips:
                 c.status, c.severity = "n/a", "info"
-                why = ("Stack not recognized; insufficient evidence to apply this check. Re-run with --profile."
+                why = ("Project type not determined; insufficient evidence to apply this check. Re-run with --profile."
                        if fingerprint.profile == "unknown" else f"Not applicable to a {fingerprint.profile} project.")
                 c.detail = f"{why} {c.detail}"
                 c.recommendation = ""

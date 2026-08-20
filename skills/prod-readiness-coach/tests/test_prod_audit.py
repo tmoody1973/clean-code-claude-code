@@ -145,10 +145,11 @@ class Profiles(unittest.TestCase):
         r = audit({"package.json": json.dumps({"bin": {"x": "cli.js"}})})
         self.assertEqual(r["stack_fingerprint"]["profile"], "cli")
 
-    def test_known_language_without_framework_stays_strict(self):
+    def test_language_without_framework_is_unknown(self):
         r = audit({"main.py": "print(1)", "requirements.txt": "requests"})
-        self.assertEqual(r["stack_fingerprint"]["profile"], "web-app")
-        self.assertNotEqual(check(r, "log-3")["status"], "n/a")
+        self.assertEqual(r["stack_fingerprint"]["profile"], "unknown")
+        self.assertEqual(check(r, "log-3")["status"], "n/a")
+        self.assertEqual(check(r, "ci-1")["status"], "fail")  # still applies
 
     def test_nothing_recognized_is_unknown_and_reports_insufficient_evidence(self):
         r = audit({"notes.txt": "hello"})

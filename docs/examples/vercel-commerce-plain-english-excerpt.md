@@ -1,17 +1,17 @@
 # How production-ready is vercel/commerce? (excerpt)
 
-> This is an excerpt of the plain-English document the coach writes, based on the [raw report](vercel-commerce-raw-report.md). It shows the shape: what was checked, what was found, why it matters, the concept in one paragraph, and an honest urgency call. A full run covers every finding and ends with a learning roadmap. No product context was given for this run, so the urgency lines are generic.
+> This is an excerpt of the plain-English document the coach writes, based on the [raw report](vercel-commerce-raw-report.md) of commit `3761e52e60df`. It shows the shape: what was checked, what was found, why it matters, the concept in one paragraph, and an honest urgency call. A full run covers every finding and ends with a learning roadmap. No product context was given for this run, so the urgency lines are generic.
 
 ## The short version
 
-This is a well-built storefront template with a clean dependency setup and no secrets anywhere in the code. What is missing is the safety net around it: nothing runs tests before a change goes live, there are no tests to run, and nothing tells you when it breaks for a shopper. For a template people copy to start real stores, those gaps travel with every copy.
+This is a well-built storefront template with a pinned dependency setup, and the scan found no obvious secret patterns in its files. What is missing is the safety net around it: nothing runs tests before a change goes live, there are no tests to run, and nothing tells you when it breaks for a shopper. For a template people copy to start real stores, those gaps travel with every copy.
 
 **Repository Controls Score: 76/100 (D, release blockers present)**
 
 ## What's already solid
 
-- **Your secrets are clean.** No keys or passwords in the code. The scan covered code and config files and found nothing.
-- **Your dependency list is frozen.** A lockfile is committed, so "works on my machine" means "works in production."
+- **No obvious secret patterns were found.** The scan covered code and config files in the working tree. It did not check git history, and it matches patterns, not meaning. If this repo were yours, a history scan with gitleaks would be the next step.
+- **Your dependency list is pinned.** A lockfile is committed, so every install gets the same versions. That makes installs reproducible. It does not promise production behaves like your laptop.
 - **Types are strict.** TypeScript catches a whole class of bugs before the code runs.
 
 ## What needs attention

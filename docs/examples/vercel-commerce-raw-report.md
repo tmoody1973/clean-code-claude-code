@@ -1,4 +1,4 @@
-> Example output. Generated 2026-08-20 by `prod_audit.py` against a shallow clone of [vercel/commerce](https://github.com/vercel/commerce) at that date. No product context was given, so no profile flag was passed; the tool inferred `web-app` and the `nextjs-vercel` adapter. Findings reflect that snapshot, not the project today.
+> Example output. Generated 2026-08-20 by `prod_audit.py` against a shallow clone of [vercel/commerce](https://github.com/vercel/commerce) at commit `3761e52e60df`. No product context was given, so no profile flag was passed; the tool inferred `web-app` and the `nextjs-vercel` adapter. Findings reflect that snapshot, not the project today.
 
 # Production Readiness Audit — commerce
 

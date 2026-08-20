@@ -1,6 +1,6 @@
 ---
 name: prod-readiness-coach
-description: "Audits any code repository for production-readiness gaps (CI/CD pipeline, structured logging, error tracking, secrets management, CLAUDE.md/AGENTS.md, resilience/runbooks, multi-surface deployment and coordinated rollback risk, irreversible migrations, test coverage, dependency security) and produces two plain-English documents: a beginner-friendly audit explainer and a phase-gated Claude Code fix brief. Detects the repo's stack (frameworks, deploy platforms, runtimes) and loads matching stack-specific reference material so advice reflects real platform gotchas instead of generic checklist language. Use when a user asks to audit, check, or review a repo for production readiness, best practices, or launch-blockers, or asks to turn code-quality/DevOps findings into something a non-expert or self-taught (\"vibe coder\") developer can understand and act on."
+description: "Audits any code repository for production-readiness gaps (CI/CD pipeline, structured logging, error tracking, secrets management, CLAUDE.md/AGENTS.md, resilience/runbooks, multi-surface deployment and coordinated rollback risk, irreversible migrations, test coverage, dependency security) and produces two plain-English documents: a beginner-friendly audit explainer and a phase-gated Claude Code fix brief. Detects the repo's stack (frameworks, deploy platforms, runtimes) and loads matching stack-specific reference material so advice reflects real platform gotchas instead of generic checklist language. Use when a user asks to audit, check, or review a repo for production readiness, best practices, or launch-blockers, or asks to turn code-quality/DevOps findings into something a non-expert or self-taught (\"vibe coder\") developer can understand and act on. Use for repository controls and static scanning; run it first on broad production-readiness requests. Do not use alone to judge user journeys or product correctness; that is product-readiness-review."
 ---
 
 # Production Readiness Coach
@@ -124,14 +124,19 @@ stack and ask what kind of project it is. Top-level fields that matter:
   means the tool only found matching text — write it up as "looks like
   this may exist; confirm by hand," never as a confirmed win.
 
-This structured data is the ground truth for everything you write next —
-never invent a finding that isn't in this JSON, and never soften a
-`critical` into something less urgent regardless of `product_context`.
-
-If the repo doesn't look like it matches any check's expectations well
-(e.g. an unusual stack), spot-check a couple of surprising failures by
-reading the actual files before writing them up — the tool is pattern-based
-static analysis, not infallible.
+Treat this JSON as the authoritative record of **what the scanner
+observed**, not as final truth. The scanner is pattern-based static
+analysis. Rules:
+- Never invent a finding that isn't in the JSON.
+- Verify every `critical` and `high` finding that surprises you by reading
+  the actual files before writing it up. Monitoring configured outside the
+  repo, an org-level CI pipeline, or an unusual layout can all produce a
+  false critical.
+- You may correct or downgrade a finding **only** when direct evidence
+  disproves it, and the report must name that evidence ("the tool flagged
+  no test runner; `package.json` runs `node --test`, so this is a false
+  positive"). Product context alone never downgrades a finding.
+- Never soften a confirmed `critical` because the stakes sound low.
 
 ### 4. Load fingerprint-matched stack adapters
 

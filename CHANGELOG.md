@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.2.1
+
+- Accuracy pass, no new features.
+- Example report: claims now match what the scanner proved ("no obvious secret patterns in scanned files; history not checked"), and the audited commit SHA is recorded.
+- SKILL.md: the JSON is the record of what the scanner observed, not "ground truth." Surprising critical/high findings must be verified; a finding may be downgraded only with named evidence.
+- A detected language with no framework or deploy surface is now `unknown`, not `web-app`.
+- The scanner requires Python 3.9+ and says so instead of failing silently.
+- README: CI wording no longer overpromises ("passing CI raises confidence; branch protection is what blocks"), and the timing rule is "before the first shared or live deploy, earlier with tests or collaborators."
+- Skill descriptions carry explicit routing between `prod-readiness-coach` and `product-readiness-review`.
+- Skill README license link fixed.
+
 ## 3.2.0
 
 - Security: the secret scanner no longer copies the matching line into reports. Evidence is now `file:line [type] AKIA…MNOP`.
