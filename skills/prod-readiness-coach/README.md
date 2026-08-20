@@ -75,9 +75,13 @@ Useful flags:
 - `--profile cli` tells the tool what kind of project this is (see Profiles)
 - `--fail-on critical` exits non-zero if any critical finding remains, so you can use it in CI
 
+## Where the reports go
+
+The two documents and the raw report are written to a scratch location, not into your repo, unless you ask for them there. Running an audit should not leave your working tree dirty.
+
 ## Scoring
 
-Each category starts at 100 and loses points per failing check. The overall score is the average. The penalty weights are inherited, not calibrated (see `docs/decisions/004`), so treat the number as a progress meter for one repo, not a way to compare two repos. The letter grade is capped at D whenever a critical finding exists, so a repo with no CI and no error tracking cannot show as "nearly ready" just because its other categories are clean.
+Each category starts at 100 and loses points per failing check. The overall score is the average. The penalty weights are inherited, not calibrated (see `docs/decisions/004`), so treat the number as a progress meter for one repo, not a way to compare two repos. The letter grade is capped at D whenever a critical finding exists. The top grade reads "Strong evidence of controls," not "production ready": this is a scan of files, it does not run your app.
 
 ## Profiles
 

@@ -85,7 +85,7 @@ WEAK_PASS_IDS = {"log-4", "res-3", "sec-4"}
 # is reported as "n/a" and left out of the score. When the guess is unsure
 # we pick the stricter profile (web-app): a false failure is cheaper than a
 # skipped real check.
-PROFILES = ("web-app", "api", "worker", "cli", "library")
+PROFILES = ("web-app", "api", "worker", "cli", "library", "unknown")
 _SERVICE_ONLY = {"log-3", "res-3"}                       # needs an HTTP surface
 _DEPLOYED_ONLY = {"log-1", "log-2", "log-4", "res-1", "res-2", "res-4", "res-5",
                   "sec-5", "ms-1", "ci-5"} | _SERVICE_ONLY  # needs to run somewhere
@@ -95,6 +95,9 @@ CHECK_SKIPS_BY_PROFILE = {
     "worker": _SERVICE_ONLY,
     "cli": _DEPLOYED_ONLY,
     "library": _DEPLOYED_ONLY,
+    # Nothing recognizable was detected. Runtime-specific checks are reported
+    # as n/a ("insufficient evidence") rather than failed web-app checks.
+    "unknown": _DEPLOYED_ONLY,
 }
 
 
@@ -214,13 +217,17 @@ class Repo:
     def read(self, relpath: str, max_bytes: int = 200_000) -> str:
         try:
             p = self.root / relpath
+            # Never follow a symlink out of the repository. A cloned repo is
+            # untrusted input; a link named config.env could point at ~/.aws.
+            if not p.resolve().is_relative_to(self.root.resolve()):
+                return ""
             data = p.read_bytes()[:max_bytes]
             return data.decode("utf-8", errors="ignore")
         except Exception:
             return ""
 
     def grep(self, pattern: str, paths: Optional[list[str]] = None, flags=re.IGNORECASE,
-             skip_comments: bool = True) -> list[tuple[str, str]]:
+             skip_comments: bool = True, with_lineno: bool = False) -> list:
         """Return (file, matching line) for regex pattern across given files (or all code files).
         Comment lines are skipped by default so a TODO never counts as an implementation."""
         rx = re.compile(pattern, flags)
@@ -232,11 +239,11 @@ class Repo:
             content = self.read(f)
             if not content:
                 continue
-            for line in content.splitlines():
+            for lineno, line in enumerate(content.splitlines(), 1):
                 if skip_comments and COMMENT_LINE_RX.match(line):
                     continue
                 if rx.search(line):
-                    hits.append((f, line.strip()[:160]))
+                    hits.append((f, line.strip()[:160]) if not with_lineno else (f, lineno, line))
         return hits
 
     def package_json(self) -> dict:
@@ -778,6 +785,14 @@ SECRET_PATTERNS = [
 ]
 
 
+def redact(token: str) -> str:
+    """Keep a 4-char head and tail as a fingerprint; hide the rest."""
+    token = token.strip().strip("\"'")
+    if len(token) <= 8:
+        return "****"
+    return f"{token[:4]}…{token[-4:]}"
+
+
 def check_secrets_management(repo: Repo) -> list[CheckResult]:
     ref = "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
     results = []
@@ -839,8 +854,11 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
         if Path(f).suffix in SECRET_SCAN_EXTS or Path(f).name.startswith(".env")
     })
     for pattern, label in SECRET_PATTERNS:
-        for f, line in repo.grep(pattern, paths=scan_files, flags=0, skip_comments=False):
-            secret_hits.append((f, label, line))
+        rx = re.compile(pattern)
+        for f, lineno, line in repo.grep(pattern, paths=scan_files, flags=0, skip_comments=False, with_lineno=True):
+            m = rx.search(line)
+            token = m.group(0) if m else ""
+            secret_hits.append((f, lineno, label, redact(token)))
     if secret_hits:
         results.append(CheckResult(
             "sec-4", "Secrets & Environment Management", "No hardcoded secrets in source",
@@ -849,7 +867,9 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
             "Move all secrets to environment variables or a secrets manager "
             "(Vercel/Doppler/AWS Secrets Manager/Vault). Rotate any credential "
             "that was ever committed, even if later removed — it remains in git history.",
-            evidence=[f"{f} [{label}]: {line[:80]}" for f, label, line in secret_hits[:10]],
+            # Never put the matched line in the report: it would carry the secret
+            # into JSON, Markdown, CI artifacts, and the agent's context.
+            evidence=[f"{f}:{lineno} [{label}] {fp}" for f, lineno, label, fp in secret_hits[:10]],
             best_practice_ref=ref,
         ))
     else:
@@ -1277,7 +1297,11 @@ def guess_profile(repo: Repo, fp: StackFingerprint) -> str:
         return "library"
     if re.search(r"\[project\.scripts\]", repo.read("pyproject.toml")):
         return "cli"
-    return "web-app"
+    if fp.frameworks or fp.deploy_surfaces:
+        return "web-app"  # something deploys or serves; stay strict
+    if fp.languages:
+        return "web-app"  # a known language but no framework: still strict
+    return "unknown"
 
 
 def run_audit(repo_path: Path, profile: Optional[str] = None) -> tuple[list[Category], StackFingerprint]:
@@ -1307,7 +1331,9 @@ def run_audit(repo_path: Path, profile: Optional[str] = None) -> tuple[list[Cate
                 c.confidence = "weak"
             if c.id in skips:
                 c.status, c.severity = "n/a", "info"
-                c.detail = f"Not applicable to a {fingerprint.profile} project. {c.detail}"
+                why = ("Stack not recognized; insufficient evidence to apply this check. Re-run with --profile."
+                       if fingerprint.profile == "unknown" else f"Not applicable to a {fingerprint.profile} project.")
+                c.detail = f"{why} {c.detail}"
                 c.recommendation = ""
 
     return list(categories.values()), fingerprint
@@ -1328,16 +1354,16 @@ def grade_for(score: int, critical_count: int = 0) -> str:
     # A category average can hide a release blocker. Any critical fail caps
     # the grade at D regardless of the numeric score.
     if critical_count > 0:
-        return "D — High Risk (release blockers present)" if score >= 40 else "F — Not Production Ready"
+        return "D — Release blockers present" if score >= 40 else "F — Release blockers, little else in place"
     if score >= 90:
-        return "A — Production Ready"
+        return "A — Strong evidence of controls"
     if score >= 75:
-        return "B — Nearly Ready (minor gaps)"
+        return "B — Minor gaps"
     if score >= 60:
-        return "C — Notable Gaps"
+        return "C — Notable gaps"
     if score >= 40:
-        return "D — High Risk"
-    return "F — Not Production Ready"
+        return "D — Major gaps"
+    return "F — Few controls found"
 
 
 def render_markdown(categories: list[Category], repo_name: str, fp: Optional[StackFingerprint] = None,
@@ -1396,7 +1422,10 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         lines.append(f"**Profile:** `{fp.profile}` ({fp.profile_source}). Checks that do not apply to this "
                      "profile are marked n/a and left out of the score. Wrong profile? Re-run with `--profile`.")
         lines.append("")
-    lines.append(f"## Overall Readiness Score: {score}/100 — {grade}")
+    lines.append(f"## Repository Controls Score: {score}/100 — {grade}")
+    lines.append("")
+    lines.append("_This is a static scan of files and config. It measures which production controls "
+                 "have evidence in the repo. It does not run the app and cannot prove the product works._")
     lines.append("")
     if blocking:
         lines.append(f"**{len(blocking)} CRITICAL blocking issue(s)** must be resolved before a stable, "

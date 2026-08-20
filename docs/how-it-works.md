@@ -37,7 +37,7 @@ Use for implementation quality. It reviews relevant code for correctness, securi
 
 ### `prod-readiness-coach`
 
-Runs a dependency-free Python script that scans the repository for production gaps (CI, structured logging, error tracking, secrets, runbooks, multi-surface rollback, irreversible migrations, tests, dependency security), detects the stack, and loads matching platform notes. Claude then writes two documents: a plain-English audit that teaches each concept, and a phase-gated fix brief for a coding agent with a separate manual-steps list. Same repo, same findings every run; `--fail-on critical` makes it usable in CI. Run it first, then `product-readiness-review` for product judgment.
+Runs a dependency-free Python script that scans the repository for production gaps (CI, structured logging, error tracking, secrets, runbooks, multi-surface rollback, irreversible migrations, tests, dependency security), detects the stack, and loads matching platform notes. Claude then writes two documents: a plain-English audit that teaches each concept, and a phase-gated fix brief for a coding agent with a separate manual-steps list. Secret values are redacted to a fingerprint in every output, symlinks that leave the repo are not followed, and reports go to a scratch location unless the user asks for them in the repo. Same repo, same findings every run; `--fail-on critical` makes it usable in CI. Run it first, then `product-readiness-review` for product judgment.
 
 ### `product-readiness-review`
 

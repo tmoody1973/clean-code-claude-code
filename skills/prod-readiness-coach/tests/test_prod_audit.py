@@ -145,15 +145,43 @@ class Profiles(unittest.TestCase):
         r = audit({"package.json": json.dumps({"bin": {"x": "cli.js"}})})
         self.assertEqual(r["stack_fingerprint"]["profile"], "cli")
 
-    def test_unknown_repo_defaults_to_strict_web_app(self):
-        r = audit({"main.py": "print(1)"})
+    def test_known_language_without_framework_stays_strict(self):
+        r = audit({"main.py": "print(1)", "requirements.txt": "requests"})
         self.assertEqual(r["stack_fingerprint"]["profile"], "web-app")
         self.assertNotEqual(check(r, "log-3")["status"], "n/a")
+
+    def test_nothing_recognized_is_unknown_and_reports_insufficient_evidence(self):
+        r = audit({"notes.txt": "hello"})
+        self.assertEqual(r["stack_fingerprint"]["profile"], "unknown")
+        self.assertEqual(check(r, "log-3")["status"], "n/a")
+        self.assertIn("insufficient evidence", check(r, "log-3")["detail"].lower())
 
     def test_worker_profile_skips_http_checks_only(self):
         r = audit({"job.py": "x=1"}, profile="worker")
         self.assertEqual(check(r, "log-3")["status"], "n/a")
         self.assertNotEqual(check(r, "log-2")["status"], "n/a")
+
+
+class Security(unittest.TestCase):
+    KEY = 'AKIA' + 'ABCDEFGHIJKLMNOP'
+
+    def test_secret_value_never_appears_in_report(self):
+        r = audit({"config.yaml": f'aws_key: "{self.KEY}"\n'})
+        blob = json.dumps(r)
+        self.assertNotIn(self.KEY, blob)
+        ev = check(r, "sec-4")["evidence"][0]
+        self.assertTrue(ev.startswith("config.yaml:1 [AWS Access Key ID] AKIA"), ev)
+        self.assertIn("…", ev)
+
+    def test_symlink_outside_repo_is_not_read(self):
+        outside = Path(tempfile.mkdtemp()) / "outside.env"
+        outside.write_text(f'AWS_KEY="{self.KEY}"\n')
+        root = make_repo({"README.md": "x"})
+        (root / "config.env").symlink_to(outside)
+        cats, fp = prod_audit.run_audit(root)
+        r = prod_audit.render_json(cats, root.name, fp)
+        self.assertEqual(check(r, "sec-4")["status"], "pass")
+        self.assertNotIn(self.KEY, json.dumps(r))
 
 
 class CiDetection(unittest.TestCase):

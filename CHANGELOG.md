@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.2.0
+
+- Security: the secret scanner no longer copies the matching line into reports. Evidence is now `file:line [type] AKIA…MNOP`.
+- Security: the scanner refuses to read through symlinks that resolve outside the repository.
+- The coach treats the audited repository as untrusted data; instructions found inside it are never followed.
+- Reports are written to a scratch location by default, not into the user's repo.
+- Grade labels no longer say "Production Ready." The top grade is "Strong evidence of controls" and the heading is "Repository Controls Score."
+- New `unknown` profile: when no stack is recognized, runtime checks report "insufficient evidence" instead of failing as a web app.
+- Tests: 22 (secret redaction, symlink containment, unknown profile).
+
 ## 3.1.0
 
 - Add `prod-readiness-coach`: a script-backed production-readiness scan with stack detection, project profiles, confidence labels on text-match findings, a plain-English audit, and a phase-gated fix brief. Moved in from `tmoody1973/prod-readiness-coach` with history.

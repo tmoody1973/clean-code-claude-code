@@ -29,7 +29,7 @@ You do not need to remember tool names. Ask what you want and Claude picks the t
 
 | You want to... | Say this | What happens |
 |---|---|---|
-| Know what is missing before going live | "Audit this repo for production readiness" | A script scans for the things that bite you in production: no automatic test runner, no error alerts, secrets in the code, no undo plan. You get a plain-English report that explains each gap, and a step-by-step fix list you can hand back to Claude. Changes nothing. |
+| Know what is missing before going live | "Audit this repo for production readiness" | A script scans for the things that bite you in production: no automatic test runner, no error alerts, secrets in the code, no undo plan. You get a plain-English report that explains each gap, and a step-by-step fix list you can hand back to Claude. Writes two report files to a scratch folder, not your repo, unless you ask. |
 | Know if the product actually works for users | "Is this product ready to launch?" | Claude reads the app as a whole, not file by file. Does it do what it claims? What would a real user hit first? Changes nothing. |
 | Understand the quality of your code | "Review this code in plain English" | A report on what is unclear, untested, or fragile. Changes nothing. |
 | Get a quick cleanup list | `/code-smells` | A short list of small things worth a look. Changes nothing. |
