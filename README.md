@@ -1,104 +1,122 @@
 # Clean Code Toolkit for Claude Code
 
-Practical guardrails for people building products with AI-assisted coding. The toolkit helps you improve implementation quality, find out whether the repo and the product are actually ready, and prepare a repository for an incoming developer.
+You built an app by describing it to an AI. It works. Now you want to know: is it safe to put in front of real people, will it still make sense to me in a month, and could I hand it to a developer without embarrassment?
+
+This toolkit answers those questions inside Claude Code, in plain English, and teaches you something each time. It is for people who vibe code and want to get better at it, not for people who already have an engineering team.
 
 [![Validate toolkit](https://github.com/tmoody1973/clean-code-claude-code/actions/workflows/validate.yml/badge.svg)](https://github.com/tmoody1973/clean-code-claude-code/actions/workflows/validate.yml)
 
-Clean code is not a score or a rigid set of line limits. In this toolkit, correctness, security, framework conventions, product behavior, and evidence from tests come first.
+## The problem it solves
 
-## What is included
+AI writes code faster than you can understand it. For a while that is fine. Then one day something breaks and you do not know where to look. Or a developer asks "how does this work?" and you cannot say. The app grew faster than your grasp of it.
 
-| Tool | Mode | Use it when you want to… |
-|---|---|---|
-| `clean-code-review` | Read-only skill | Review correctness, clarity, maintainability, tests, and handoff gaps |
-| `prod-readiness-coach` | Read-only skill + script | Scan a repo for CI, logging, secrets, rollback, and test gaps; get a plain-English audit and a phased fix brief |
-| `product-readiness-review` | Read-only skill | Judge whether the product works for its users, launch, production, or due diligence |
-| `developer-handoff` | Documentation skill | Create a factual guide for an incoming developer |
-| `boy-scout-cleanup` | Editing skill | Make 3–5 small, behavior-preserving improvements |
-| `clean-code-scaffold` | Editing skill | Structure a project using its real framework conventions |
-| `/code-smells` | Read-only command | Run a quick contextual maintainability scan |
-| `/refactor` | Editing command | Make a focused structural change with verification |
-| `/add-clean-code` | Setup command | Add concise always-on rules to a project's `CLAUDE.md` |
+The fix is not to stop using AI. The fix is to look before you touch, fix small, and write things down. This toolkit makes those habits easy to follow because Claude does the looking and explains what it found.
 
-## Install from GitHub
+## Install
 
-In Claude Code, add this repository as a marketplace and install the plugin:
+Open Claude Code and type these two lines:
 
 ```text
 /plugin marketplace add tmoody1973/clean-code-claude-code
 /plugin install clean-code-toolkit@clean-code-toolkit
 ```
 
-To test a local clone before publishing:
+Start a new session. You now have six skills and three commands. A skill is something Claude picks up on its own when you ask the right kind of question. A command is something you type with a slash.
+
+## Ask in plain English
+
+You do not need to remember tool names. Ask what you want and Claude picks the tool.
+
+| You want to... | Say this | What happens |
+|---|---|---|
+| Know what is missing before going live | "Audit this repo for production readiness" | A script scans for the things that bite you in production: no automatic test runner, no error alerts, secrets in the code, no undo plan. You get a plain-English report that explains each gap, and a step-by-step fix list you can hand back to Claude. Changes nothing. |
+| Know if the product actually works for users | "Is this product ready to launch?" | Claude reads the app as a whole, not file by file. Does it do what it claims? What would a real user hit first? Changes nothing. |
+| Understand the quality of your code | "Review this code in plain English" | A report on what is unclear, untested, or fragile. Changes nothing. |
+| Get a quick cleanup list | `/code-smells` | A short list of small things worth a look. Changes nothing. |
+| Tidy one file safely | "Use boy-scout-cleanup on this file" | Three to five small fixes. Behavior stays the same. Tests prove it. |
+| Make one bigger structural change | `/refactor` | One focused change with a check before and after. |
+| Start a new project the right way | "Scaffold this project" | Folders and files the way your framework expects them. |
+| Hand the project to a developer | "Prepare a developer handoff" | A guide that says what the app does, how to run it, what is fragile, and what is unknown. |
+| Make Claude follow these rules every session | `/add-clean-code` | Adds a short set of standards to your project's `CLAUDE.md`. After that Claude applies them without being asked. |
+
+Start with the rows that say "changes nothing." Read what they find. Decide what matters to your users. Only then ask Claude to change code.
+
+## A week with the toolkit
+
+**Day 1.** You start a new app. "Scaffold a Next.js project for a recipe tracker." You build all day by describing features.
+
+**Day 3.** You connect Vercel. The app is live. This is the moment that matters. "Audit this repo for production readiness." The report says: you have tests but nothing runs them automatically, and nothing tells you when the app breaks. Phase 1 of the fix list is one file. You hand it back to Claude. Twenty minutes later, every push runs your tests before it can go live. You understand why.
+
+**Day 5.** Something feels messy. "Review this code in plain English." Three findings. You use boy-scout-cleanup on the worst file. Small, safe, tested.
+
+**Week 3.** You want help. "Prepare a developer handoff." Claude writes the guide and lists what it could not figure out. You fill those in, because only you know them. The developer reads it and gets to work in an hour instead of a day.
+
+You built it by vibe. You shipped it like someone who knows what they are doing. And you can explain each step.
+
+## Four rules that prevent expensive mistakes
+
+1. **Never put secrets in code.** API keys, passwords, and tokens live in environment variables, not in files you commit or paste into chat.
+2. **A passing build is not proof the product works.** Test the things your users actually do.
+3. **Do not let AI clean up code you have not read.** A rename or a "simpler" condition can quietly change behavior.
+4. **"I don't know" is a fine answer.** A handoff that lists unknowns is safer than confident documentation the AI made up.
+
+## The two readiness tools, and when to use which
+
+Both ask "is it ready?" They answer different halves.
+
+- **`prod-readiness-coach`** runs a script. Same repo, same findings every time. It checks the plumbing: automatic tests, error alerts, secrets, undo plans, and whether a rollback on one platform leaves another out of sync. Run it first, the day you go live, and again before any launch.
+- **`product-readiness-review`** is Claude's judgment. Does the product do what it says? What would break first for a real person? Run it after the coach, when the plumbing is in.
+
+## The going-live rule
+
+Add an automatic test runner (people call it CI) the day your app first goes live. Not before: while you are sketching, tests change daily and the robot just slows you down. Not after: the moment a real person or a scheduled job depends on the app, a broken push has a real cost.
+
+A simple trigger: the same day you connect Vercel, Fly, or Netlify, run the readiness coach. It will hand you the CI file.
+
+`/add-clean-code` puts this rule into your project's `CLAUDE.md` so Claude reminds you at the right moment.
+
+## Requirements
+
+- Claude Code 2.1.89 or newer.
+- `/add-clean-code` needs Bash and standard Unix tools, so macOS or Linux.
+- The readiness coach's script needs Python 3 (any recent version, no packages to install). Contributors need Python 3.9 or newer for the validator.
+
+## For developers and contributors
+
+To try a local clone before publishing:
 
 ```bash
 claude --plugin-dir /absolute/path/to/clean-code-claude-code
 ```
 
-Claude Code discovers the bundled skills and commands from the plugin.
-
-The plugin targets Claude Code **2.1.89 or newer**. The `/add-clean-code` command requires Bash and standard Unix tools, so it is supported on macOS and Linux. Contributors also need Python 3.9 or newer to run the repository validator.
-
-## Start using it
-
-Begin with a read-only tool:
-
-```text
-Review this repository and explain the important findings in plain English.
-```
-
-```text
-Is this product ready to hand to a developer and launch to early users?
-```
-
-```text
-Prepare a developer handoff for this repository. Verify every command you can and clearly list unknowns.
-```
-
-Use `/add-clean-code` when you want the concise standards applied automatically in a project. It appends the managed section without overwriting existing instructions.
-
-See [Start Here for Vibe Coders](docs/start-here-vibe-coders.md) for a plain-English workflow and [How It Works](docs/how-it-works.md) for tool boundaries.
-
-## Design principles
-
-- **Product intent first:** understand the user-visible outcome before optimizing internals.
-- **Read-only before editing:** assess risk before changing files.
-- **Evidence over confidence:** use tests, types, linters, builds, and repository facts.
-- **Framework conventions win:** generic advice never outranks the stack's real conventions.
-- **Thresholds are prompts:** line counts and parameter counts trigger inspection, not automatic failure.
-- **Focused diffs:** preserve behavior and unrelated user work.
-- **Honest handoffs:** unknowns remain unknown instead of becoming plausible AI guesses.
-
-## Repository structure
-
-```text
-.
-├── .claude-plugin/          # Claude Code plugin and marketplace manifests
-├── .github/workflows/       # Continuous validation
-├── commands/                # Explicit slash commands
-├── skills/                  # On-demand workflows and references
-├── scripts/                 # Portable installer and validation
-├── templates/CLAUDE.md      # Canonical always-on standards
-└── docs/                    # User guidance
-```
-
-The root `CLAUDE.md` contains contributor instructions for this repository. It is not plugin context; user-facing behavior lives in the skills, commands, and installable template.
-
-## Manual standards installation
-
-From a cloned repository:
+To add the standards to a project without the plugin:
 
 ```bash
 ./scripts/add-clean-code.sh /path/to/project
 ```
 
-The script creates or appends to `CLAUDE.md`. It refuses to overwrite a legacy section that cannot be migrated safely.
+It creates or appends to `CLAUDE.md` and refuses to overwrite a section it cannot migrate safely.
 
-Maintainers should follow the [release checklist](docs/release-checklist.md) before tagging a version.
+Repository layout:
+
+```text
+.
+├── .claude-plugin/          # plugin and marketplace manifests
+├── .github/workflows/       # validation and tests on every push
+├── commands/                # slash commands
+├── skills/                  # the six skills and their reference files
+├── scripts/                 # installer and validator
+├── templates/CLAUDE.md      # the always-on standards
+└── docs/                    # guides, including the release checklist
+```
+
+The root `CLAUDE.md` holds contributor instructions for this repository. User-facing behavior lives in the skills, commands, and the installable template. Maintainers follow the [release checklist](docs/release-checklist.md) before tagging.
+
+Design principles, in one line each: product intent first; read before editing; evidence over confidence; the framework's conventions beat generic advice; line counts are prompts to look, not failures; small focused diffs; unknowns stay unknown. [How It Works](docs/how-it-works.md) describes each tool's boundaries. [Start Here for Vibe Coders](docs/start-here-vibe-coders.md) is the longer plain-English guide.
 
 ## Scope
 
-This toolkit improves engineering judgment and communication; it does not replace specialist security, accessibility, legal, compliance, or production-operations review for high-risk products.
+This toolkit improves engineering judgment and communication. It does not replace a specialist review for security, accessibility, legal, compliance, or production operations on high-risk products.
 
 ## Credits and license
 
