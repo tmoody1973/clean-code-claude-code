@@ -24,6 +24,10 @@ The script detects the stack (Next.js, Convex, Fly, Netlify, Cloudflare Workers)
 2. `FIX_BRIEF_FOR_CLAUDE_CODE.md`. Fixes grouped into phases by severity. Each phase has acceptance criteria and a gate: re-run the audit before moving on. Anything an AI agent should not do alone (interactive wizards, paid-tier features, destructive choices) goes on a separate manual list.
 3. Optional raw report as Markdown or JSON.
 
+## When to run it
+
+Run the audit the day a project first goes live. Not before: while you are still sketching, tests change daily and a robot checking sketches slows you down. Not after: the moment a real person or a scheduled job depends on the app, a broken push has real cost. A simple trigger is "the same day you connect Vercel." Run it again before any launch, any schema change, and whenever you hand the repo to someone else.
+
 ## Install
 
 Copy this folder into your Claude Code skills directory:
@@ -50,7 +54,7 @@ Useful flags:
 
 ## Scoring
 
-Each category starts at 100 and loses points per failing check. The overall score is the average. The letter grade is capped at D whenever a critical finding exists, so a repo with no CI and no error tracking cannot show as "nearly ready" just because its other categories are clean.
+Each category starts at 100 and loses points per failing check. The overall score is the average. The penalty weights are inherited, not calibrated (see `docs/decisions/004`), so treat the number as a progress meter for one repo, not a way to compare two repos. The letter grade is capped at D whenever a critical finding exists, so a repo with no CI and no error tracking cannot show as "nearly ready" just because its other categories are clean.
 
 ## Profiles
 

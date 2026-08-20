@@ -44,6 +44,12 @@ medium → low), write ONE section using this exact structure:}}
 name specific files/evidence when available, so it feels concrete not
 abstract}}
 
+{{If this check's `confidence` is `weak` and you are presenting it as a
+win in "What's already solid", the bullet must open with: "The tool saw a
+hint of this, not proof." Then say what you did (or did not do) to
+confirm it. The warm voice stays; the uncertainty is stated first, not
+tucked at the end.}}
+
 **Why it matters:** {{a real, concrete consequence — what actually happens
 to you or your users if this stays unfixed. Avoid abstractions like "poses
 a risk"; say what the risk *looks like* in practice.}}

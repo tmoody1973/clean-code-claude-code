@@ -3,7 +3,7 @@ name: prod-readiness-coach
 description: "Audits any code repository for production-readiness gaps (CI/CD pipeline, structured logging, error tracking, secrets management, CLAUDE.md/AGENTS.md, resilience/runbooks, multi-surface deployment and coordinated rollback risk, irreversible migrations, test coverage, dependency security) and produces two plain-English documents: a beginner-friendly audit explainer and a phase-gated Claude Code fix brief. Detects the repo's stack (frameworks, deploy platforms, runtimes) and loads matching stack-specific reference material so advice reflects real platform gotchas instead of generic checklist language. Use when a user asks to audit, check, or review a repo for production readiness, best practices, or launch-blockers, or asks to turn code-quality/DevOps findings into something a non-expert or self-taught (\"vibe coder\") developer can understand and act on."
 license: MIT
 metadata:
-  version: '2.3'
+  version: '2.4'
   author: tarikmoody
 ---
 
@@ -139,6 +139,10 @@ generic finding.
 - Never load an adapter that isn't in `adapters_matched` for this repo,
   even if you recognize the stack from the file list — the fingerprint is
   the single source of truth for what applies here.
+- Each adapter starts with a `last_verified` date. If that date is more
+  than six months before today, add one sentence wherever you use a fact
+  from it: "this platform detail was last checked on <date> and may have
+  changed." Vendor rollback rules and setup wizards do change.
 - Each adapter file also has an "Agentic-safety notes" section — fold
   those directly into the fix brief's phase gates and the manual-steps
   list in step 7, don't leave them as trivia.

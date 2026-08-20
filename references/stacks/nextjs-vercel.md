@@ -1,5 +1,7 @@
 # Stack adapter: Next.js on Vercel
 
+_last_verified: 2026-08-20_. Platform facts below were checked against vendor docs on this date.
+
 Load this file when `stack_fingerprint.adapters_matched` includes `nextjs-vercel`
 (requires both the `vercel` deploy surface AND the `nextjs` framework detected).
 Use it to write accurate, stack-specific prose on top of the generic audit findings —

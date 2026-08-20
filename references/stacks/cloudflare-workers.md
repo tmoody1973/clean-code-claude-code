@@ -1,5 +1,7 @@
 # Stack adapter: Cloudflare Workers
 
+_last_verified: 2026-08-20_. Platform facts below were checked against vendor docs on this date.
+
 Load this file when `stack_fingerprint.adapters_matched` includes `cloudflare-workers`.
 
 ## Rollback mechanics
