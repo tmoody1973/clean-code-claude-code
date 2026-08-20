@@ -1,120 +1,47 @@
 ---
 name: clean-code-scaffold
-description: Scaffold a clean project structure organized by concern. Use this skill when the user asks to set up a new project, organize a messy codebase, create a project structure, restructure files, or says things like "set up the project," "organize this code," "create a clean folder structure," or "scaffold this project." Guides users through creating a well-organized codebase following Clean Code Pattern 7 (Clean Project Structure).
+description: "Create or propose a project structure that follows the detected language and framework conventions. Use when the user asks to start a project, scaffold an application, organize a new feature, or restructure a messy repository. Inspect the stack before proposing directories and get confirmation before moving existing files."
 ---
 
-# Clean Code Scaffold Skill
+# Clean Code Scaffold
 
-Use this skill to create or reorganize a project into a clean structure following the Clean Code Handbook's Pattern 7: Clean Project Structure.
+Create a structure that makes common product changes easy to locate and safe to implement.
 
-## Scaffold Workflow
+## Framework conventions win
 
-1. Ask the user what kind of project they're building (web app, API, CLI, library, etc.)
-2. Ask what language/framework they're using
-3. Propose a structure based on the patterns below
-4. Create the directories and any starter files after user confirms
+Inspect `package.json`, lockfiles, framework configuration, `pyproject.toml`, `go.mod`, `Cargo.toml`, build files, and existing source layout. When current framework documentation is required, fetch it before proposing a structure.
 
----
+Do not impose `components/services/utils/tests` on every stack. Next.js, Django, Rails, Go, Rust, mobile frameworks, monorepos, and libraries each have useful conventions.
 
-## Structure Principles
+## Workflow
 
-- **Organize by concern**, not by file type
-- **Separate source from tests** -- mirror the source structure in a tests directory
-- **Keep related code together** -- a feature's components, services, and utils live near each other
-- **Flat over nested** -- avoid directories more than 3 levels deep unless the project demands it
+1. Determine the product type, language, framework, runtime, package manager, and deployment target from repository evidence.
+2. Identify the product's primary domains or features and the code that changes together.
+3. Preserve an established, coherent repository pattern unless the user explicitly requests a migration.
+4. Propose the smallest structure that clarifies ownership and dependency direction.
+5. For a new project, create the agreed scaffold and starter files.
+6. For an existing project, show the proposed moves and risks before moving files or changing imports.
+7. Run framework checks after implementation.
 
----
+## Principles
 
-## Recommended Structures by Project Type
+- Keep related behavior discoverable.
+- Prefer feature or domain boundaries when they match how the product changes.
+- Separate reusable infrastructure from product-specific logic.
+- Avoid catch-all `helpers`, `misc`, or `common` directories without a clear ownership rule.
+- Avoid deep nesting that adds navigation but no boundary.
+- Colocate or separate tests according to ecosystem convention.
+- Add abstraction only when it protects a real boundary or repeated variation.
+- Document non-obvious directory responsibilities near the project entry point.
 
-### Web Application (React / Next.js / Vue)
+## Deliverable
 
-```
-project/
-├── src/
-│   ├── components/      # Reusable UI components
-│   ├── pages/           # Route-level components
-│   ├── services/        # API calls, business logic
-│   ├── utils/           # Pure helper functions
-│   ├── hooks/           # Custom hooks (React) or composables (Vue)
-│   ├── types/           # Type definitions
-│   └── constants/       # Named constants and config
-├── tests/
-│   ├── components/
-│   ├── services/
-│   └── utils/
-├── public/              # Static assets
-└── package.json
-```
+Explain:
 
-### API / Backend (Express / FastAPI / Django)
-
-```
-project/
-├── src/
-│   ├── routes/          # Route definitions
-│   ├── controllers/     # Request handlers
-│   ├── services/        # Business logic
-│   ├── models/          # Data models / schemas
-│   ├── middleware/       # Request middleware
-│   ├── utils/           # Helper functions
-│   └── config/          # Configuration and constants
-├── tests/
-│   ├── routes/
-│   ├── services/
-│   └── utils/
-└── package.json
-```
-
-### CLI Tool
-
-```
-project/
-├── src/
-│   ├── commands/        # Individual CLI commands
-│   ├── services/        # Core logic
-│   ├── utils/           # Helpers (formatting, validation)
-│   └── config/          # Defaults and constants
-├── tests/
-│   ├── commands/
-│   └── services/
-└── package.json
-```
-
-### Library / Package
-
-```
-project/
-├── src/
-│   ├── core/            # Main library logic
-│   ├── utils/           # Internal helpers
-│   └── types/           # Public type definitions
-├── tests/
-│   ├── core/
-│   └── utils/
-├── examples/            # Usage examples
-└── package.json
-```
-
----
-
-## What Goes Where
-
-| Directory | Contains | Example |
-|-----------|----------|---------|
-| `components/` | Reusable UI pieces | `Button.tsx`, `Modal.tsx` |
-| `services/` | Business logic, API calls | `userService.ts`, `emailService.ts` |
-| `utils/` | Pure functions, small helpers | `formatDate.ts`, `validateEmail.ts` |
-| `models/` | Data shapes, schemas | `User.ts`, `Order.ts` |
-| `config/` | Constants, environment | `constants.ts`, `database.ts` |
-| `tests/` | Mirrors src/ structure | `tests/services/userService.test.ts` |
-
----
-
-## Anti-Patterns to Avoid
-
-- **Everything in one folder** -- `src/` with 50 files and no subdirectories
-- **Organizing by file type** -- `src/interfaces/`, `src/classes/`, `src/functions/`
-- **Deeply nested** -- `src/modules/users/services/internal/helpers/`
-- **Tests next to source** -- mixing `.test.ts` files alongside source files (unless framework convention)
-- **Catch-all `helpers/` or `misc/`** -- if you can't name it, it needs to be split up
+- the detected conventions;
+- the proposed tree;
+- what belongs in each important directory;
+- dependency-direction rules;
+- files moved or created;
+- verification performed;
+- migration work deliberately left out.

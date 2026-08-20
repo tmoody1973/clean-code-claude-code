@@ -1,191 +1,94 @@
-# How to Use Clean Code Standards with Claude Code
+# How the Toolkit Works
 
-This toolkit gives you multiple tools for enforcing clean code principles in your Claude Code projects. They work differently and serve different purposes.
+The toolkit separates always-on guidance, read-only assessment, focused edits, and handoff documentation. That separation keeps a request to “review” from unexpectedly rewriting a repository.
 
----
+## The workflow
 
-## What's in This Package
-
-```
-clean-code-claude-code/
-├── templates/
-│   └── CLAUDE.md                    # Rules loaded every conversation
-├── scripts/
-│   └── add-clean-code.sh            # Bash script to install CLAUDE.md in any project
-├── commands/
-│   ├── add-clean-code.md            # Slash command to install CLAUDE.md
-│   ├── refactor.md                  # Structured refactoring workflow
-│   └── code-smells.md               # Quick code smell detection
-├── skills/
-│   ├── clean-code-review/
-│   │   └── SKILL.md                 # Deep 12-pattern review reference
-│   ├── clean-code-scaffold/
-│   │   └── SKILL.md                 # Clean project structure setup
-│   └── boy-scout-cleanup/
-│       └── SKILL.md                 # Incremental code cleanup
-└── docs/
-    └── how-it-works.md              # This file
+```text
+Understand product intent
+        ↓
+Read-only assessment
+        ↓
+Choose the smallest justified change
+        ↓
+Verify behavior and product outcome
+        ↓
+Document what the next developer needs
 ```
 
----
+## Always-on standards
 
-## Tool 1: CLAUDE.md -- The Always-On Rulebook
+`templates/CLAUDE.md` is the canonical standards block installed by `/add-clean-code` or `scripts/add-clean-code.sh`.
 
-### What it does
+It is intentionally concise because project instructions consume context in every session. It covers product intent, framework fit, clarity, correctness, tests, existing-code safety, and handoff hygiene.
 
-`CLAUDE.md` is a special file that Claude Code reads automatically at the start of every conversation. Think of it as project-level instructions that Claude always follows -- like a `.editorconfig` or `.prettierrc` but for Claude's behavior.
+The installer:
 
-Anything you put in `CLAUDE.md` becomes part of Claude's working context for that project. It doesn't need to be triggered or asked for. It's just *there*, shaping every line of code Claude writes.
+- creates `CLAUDE.md` when it does not exist;
+- appends without overwriting existing project instructions;
+- skips a previously installed managed section;
+- stops on a legacy clean-code section so migration is deliberate.
 
-### Why clean code rules belong here
+## Read-only assessment
 
-Clean code principles aren't situational. You don't want Claude to write clean code *sometimes* -- you want it every time. That makes `CLAUDE.md` the right home for the distilled, actionable rules.
+### `clean-code-review`
 
-### How to install it
+Use for implementation quality. It reviews relevant code for correctness, security, names, cohesion, control flow, interfaces, errors, tests, structure, and automation. Thresholds are clues, not verdicts.
 
-```bash
-cp templates/CLAUDE.md /path/to/your-project/CLAUDE.md
-```
+### `product-readiness-review`
 
-Or use the `/add-clean-code` command or `add-clean-code.sh` script.
+Use for the whole product. It considers user journeys, functional behavior, security and privacy, accessibility, reliability, performance, delivery, operations, and handoff readiness.
 
-### Tips
+### `/code-smells`
 
-- **Keep it concise.** Claude reads this every time, so shorter is better.
-- **It stacks.** If you already have a `CLAUDE.md`, the installer appends the clean code section.
-- **Project-specific overrides.** Tweak rules per project as needed.
-- **Global option.** Use `~/.claude/CLAUDE.md` for rules across ALL projects.
+Use for a faster maintainability scan. It uses configured deterministic tools when available and then applies contextual judgment. It changes nothing.
 
----
+## Editing workflows
 
-## Tool 2: Skills -- Deep References on Demand
+### `boy-scout-cleanup`
 
-### clean-code-review
+Use for 3–5 small local improvements. It checks callers, public boundaries, tests, and tooling before editing. It avoids file moves, public API changes, new features, and speculative abstractions.
 
-The full 12-pattern Clean Code Handbook. Triggers when you say things like "review this code," "refactor this," "make this cleaner," or "check code quality."
+### `/refactor`
 
-When triggered, Claude:
-1. Scores the code against all 12 clean code patterns
-2. Identifies the 3 most impactful improvements
-3. Provides refactored code with before/after comparisons
-4. Lists remaining minor issues as a checklist
+Use for a focused structural change. It defines the design problem, identifies behavior-preservation evidence, makes the smallest credible change, and verifies afterward.
 
-### clean-code-scaffold
+### `clean-code-scaffold`
 
-Project structure templates organized by concern. Triggers when you say "set up a project," "organize this code," or "scaffold this project."
+Use for new projects or deliberate reorganizations. It detects the actual language and framework before proposing a tree and asks before moving existing files.
 
-Provides recommended structures for:
-- Web applications (React / Next.js / Vue)
-- APIs and backends (Express / FastAPI / Django)
-- CLI tools
-- Libraries and packages
+## Developer handoff
 
-### boy-scout-cleanup
+`developer-handoff` inspects the repository and creates or updates a concise handoff covering:
 
-Incremental cleanup following the Boy Scout Rule. Triggers when you say "clean this up," "this file needs some love," or "improve this code."
+- product purpose and main user journeys;
+- verified setup, run, test, and build commands;
+- architecture, data, and integrations;
+- environment-variable names without secret values;
+- deployment, rollback, logs, and operational ownership;
+- test status, known issues, decisions, and recommended next work;
+- unknowns that must be answered by the owner.
 
-Works through a structured checklist: names, dead code, function length, conditionals, magic values, and formatting. Fixes 3-5 things per pass without changing behavior.
+The handoff links to authoritative files instead of duplicating the repository.
 
-### How to install skills
+## Tool routing
 
-```bash
-# Global (all projects)
-cp -r skills/clean-code-review ~/.claude/skills/
-cp -r skills/clean-code-scaffold ~/.claude/skills/
-cp -r skills/boy-scout-cleanup ~/.claude/skills/
+| User intent | Tool | Changes files? |
+|---|---|---:|
+| “How healthy is this code?” | `clean-code-review` | No |
+| “Is the product ready to launch?” | `product-readiness-review` | No |
+| “Give me a quick smell scan.” | `/code-smells` | No |
+| “Tidy this file safely.” | `boy-scout-cleanup` | Yes, locally |
+| “Restructure this module.” | `/refactor` | Yes |
+| “Set up this project.” | `clean-code-scaffold` | Yes |
+| “Help another developer take over.” | `developer-handoff` | Documentation only |
 
-# Per-project
-cp -r skills/ /path/to/your-project/.claude/skills/
-```
+## What the toolkit deliberately avoids
 
----
-
-## Tool 3: Commands -- One-Step Actions
-
-### /add-clean-code
-
-Installs the Clean Code Standards section into a project's CLAUDE.md. Handles both new and existing CLAUDE.md files, with duplicate detection.
-
-### /refactor
-
-Structured refactoring using six techniques from the handbook: Extract Method, Rename Variable, Simplify Conditionals, Inline Temp, Replace Conditional with Polymorphism, and Remove Dead Code.
-
-### /code-smells
-
-Quick scan against the 8 most common code smells: duplicated logic, god objects, long parameter lists, nested conditionals, long methods, vague names, commented-out code, and magic numbers. Read-only -- reports issues without modifying code.
-
-### How to install commands
-
-```bash
-# Global (all projects)
-cp commands/*.md ~/.claude/commands/
-
-# Per-project
-mkdir -p /path/to/your-project/.claude/commands
-cp commands/*.md /path/to/your-project/.claude/commands/
-```
-
----
-
-## Tool 4: add-clean-code.sh -- Terminal-First Setup
-
-A bash script that installs the CLAUDE.md rules from your terminal:
-
-```bash
-chmod +x scripts/add-clean-code.sh
-
-# Current directory
-./scripts/add-clean-code.sh
-
-# Specific project
-./scripts/add-clean-code.sh /path/to/project
-
-# Multiple projects
-for dir in ~/projects/app1 ~/projects/app2; do
-    ./scripts/add-clean-code.sh "$dir"
-done
-```
-
-Safe to run repeatedly -- detects duplicates and skips if already installed.
-
----
-
-## How All Tools Work Together
-
-| Tool | Type | When it runs | What it does |
-|------|------|-------------|--------------|
-| `CLAUDE.md` | Config file | Every conversation, automatically | Enforces clean code while writing |
-| `clean-code-review` | Skill | "Review this code" | Deep 12-pattern analysis |
-| `clean-code-scaffold` | Skill | "Set up project structure" | Organizes by concern |
-| `boy-scout-cleanup` | Skill | "Clean this up" | Incremental improvement |
-| `/add-clean-code` | Command | When you type it | Installs CLAUDE.md rules |
-| `/refactor` | Command | When you type it | Structured refactoring |
-| `/code-smells` | Command | When you type it | Quick smell detection |
-| `add-clean-code.sh` | Script | From terminal | Same install, outside Claude Code |
-
-**Typical workflow:**
-
-1. Start a new project -- run `/add-clean-code` or the bash script
-2. Scaffold the structure -- say "set up a clean project structure"
-3. Write code -- CLAUDE.md rules shape every response automatically
-4. Need a deep review -- say "review this code"
-5. Quick smell check -- type `/code-smells`
-6. Touching existing code -- say "clean this up" for Boy Scout Rule
-7. Targeted refactoring -- type `/refactor`
-
----
-
-## Customizing
-
-All files are plain Markdown or bash. Edit freely:
-
-- **Add language-specific rules** to the CLAUDE.md template
-- **Add your team's conventions** to any file
-- **Remove patterns** that don't apply to your stack
-- **Add new patterns** -- all files are designed to be extended
-
----
-
-## Credits
-
-Based on the [Clean Code Handbook](https://www.freecodecamp.org/news/the-clean-code-handbook/) by freeCodeCamp.
+- Universal folder structures
+- Automatic failure based on line counts
+- Requiring dependency injection or polymorphism everywhere
+- Claiming that the presence of tests proves safety
+- Rewriting existing code during a review
+- Treating a successful build as proof of product readiness
+- Filling documentation gaps with guessed facts

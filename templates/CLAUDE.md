@@ -1,71 +1,49 @@
+<!-- BEGIN CLEAN CODE STANDARDS -->
 # Clean Code Standards
 
-All code produced in this project must follow these clean code principles. These are non-negotiable defaults — not suggestions.
+Build software that is correct, safe to change, and understandable to the next developer. Apply these rules to new code. In existing code, report broader problems instead of rewriting them unless the user asks.
 
-## Naming
+## Start with product intent
 
-- Every variable, function, and class name must clearly communicate its purpose. No single-letter names, no abbreviations unless universally understood (e.g., `id`, `url`).
-- Use `numberOfUsers` not `n`. Use `calculateShippingCost` not `calc`.
+- Confirm the user-visible outcome and acceptance criteria when the request is ambiguous.
+- Preserve existing behavior unless a behavior change is part of the request.
+- Prefer the smallest complete solution over speculative infrastructure.
 
-## Functions
+## Framework conventions win
 
-- Each function does ONE thing (Single Responsibility Principle). If you can describe what a function does using "and," split it.
-- Keep functions under 20 lines. If longer, extract helper functions.
-- Prefer small, composable functions over large monolithic ones.
+- Detect the language, framework, and existing repository patterns before changing structure or style.
+- Follow current ecosystem conventions when they conflict with generic advice.
+- Use the project's configured formatter, linter, type checker, and test runner.
 
-## Comments
+## Clarity
 
-- Code should be self-explanatory. Comments explain WHY, never WHAT or HOW.
-- Bad: `// Loop through users` — Good: `// Retry failed users from the last sync batch`
-- Delete comments that restate the code. Outdated comments are worse than no comments.
+- Use names that communicate intent at their scope and match product vocabulary.
+- Keep responsibilities cohesive. Readability beats arbitrary function-length or parameter-count limits.
+- Comments explain decisions, business rules, constraints, or non-obvious techniques—not syntax.
+- Avoid abstraction until it protects a real boundary or repeated variation.
 
-## Formatting & Consistency
+## Correctness and safety
 
-- Use consistent indentation (2 or 4 spaces — pick one, never mix).
-- Group related logic with blank lines. Separate concerns visually.
-- Use Prettier/ESLint or equivalent formatter. Every file should look like the same person wrote it.
+- Validate input at trust boundaries and fail with actionable, ecosystem-appropriate errors.
+- Never silently swallow failures.
+- Preserve evaluation order, strictness, side effects, and public contracts during cleanup.
+- Never place secrets in source, logs, examples, or committed configuration. Use environment variables or a secret manager.
 
-## No Hardcoded Values
+## Tests and verification
 
-- Extract magic numbers and strings into named constants or config.
-- Bad: `if (users >= 100)` — Good: `if (users >= MAX_USERS)`
+- Test important behavior, business rules, boundaries, and regressions—not every trivial line.
+- Before risky changes to untested code, add a characterization test or explain the risk and ask how to proceed.
+- Run the narrowest relevant checks after edits and report what ran.
 
-## Project Structure
+## Existing code
 
-- Organize by concern: `components/`, `services/`, `utils/`, `tests/`.
-- Keep test files outside `src/` in a mirrored structure.
-- Never dump everything in one directory.
+- Keep diffs focused and preserve unrelated user changes.
+- Make small cleanup passes; do not combine feature work with broad aesthetic rewrites.
+- Do not rename public interfaces or move files without checking callers and migration impact.
 
-## Error Handling
+## Developer handoff
 
-- Fail fast. Throw meaningful errors with clear messages.
-- Use try/catch blocks. Never silently swallow errors.
-- Log like you're documenting a crime scene: precise, relevant, minimal.
-
-## Testing
-
-- Write unit tests for every function with logic.
-- Tests should be as clean as production code.
-- Test edge cases, not just the happy path.
-
-## Dependency Injection
-
-- Pass dependencies as arguments rather than hardcoding them.
-- This makes code testable and swappable.
-
-## The Boy Scout Rule
-
-- Leave every file cleaner than you found it.
-- When touching existing code: rename unclear variables, extract messy functions, remove dead code.
-
-## Open/Closed Principle
-
-- Design for extension, not modification. Use polymorphism and composition.
-- Adding a new feature should not require rewriting existing working code.
-
-## Code Smells to Fix on Sight
-
-- Duplicated logic → extract into a shared function
-- God objects doing everything → split responsibilities
-- Long parameter lists → use an options/config object
-- Nested conditionals 3+ levels deep → extract or invert early returns
+- Keep setup, run, test, and deployment instructions accurate when those workflows change.
+- Document new environment-variable names without recording secret values.
+- Record non-obvious architecture decisions, operational risks, and known limitations.
+<!-- END CLEAN CODE STANDARDS -->

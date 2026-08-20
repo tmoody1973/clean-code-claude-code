@@ -1,37 +1,15 @@
-Scan the code the user provides or the file they specify for code smells.
+---
+description: Run a quick, read-only scan for maintainability smells using configured tools and contextual review.
+---
 
-Follow these steps exactly:
+Perform a read-only smell scan on the file, directory, or pasted code the user identifies.
 
-1. Read the code to scan. If the user specified a file or directory, read those files. If they pasted code, use that.
+1. Read repository guidance and detect the language, framework, and configured linter or analyzer.
+2. Run the narrowest safe configured tool when practical. Do not install dependencies or rewrite files.
+3. Inspect for duplicated business rules, unrelated responsibilities, confusing interfaces, deep nesting, misleading names, dead code, unexplained domain values, hidden side effects, and speculative abstractions.
+4. Treat counts such as 20 lines, four parameters, or three nesting levels as prompts to inspect context—not automatic failures.
+5. Report only actionable findings with file, line, evidence, impact, and a concrete recommendation.
+6. Separate deterministic tool output from judgment-based findings and avoid duplicating the same issue.
+7. If no linter is configured, note it as a tooling opportunity only when a linter would materially help this project. Do not automatically rank it above code defects.
 
-2. Check the code against each of these 8 code smells (from the Clean Code Handbook):
-
-   | # | Smell | What to Look For |
-   |---|-------|-----------------|
-   | 1 | Duplicated logic | Same or very similar code blocks appearing in multiple places |
-   | 2 | God objects | Classes or modules doing too many unrelated things |
-   | 3 | Long parameter lists | Functions with 4 or more parameters |
-   | 4 | Nested conditionals | if/else chains 3 or more levels deep |
-   | 5 | Long methods | Functions that need scrolling (over 20 lines) |
-   | 6 | Vague names | Variables or functions that don't communicate intent |
-   | 7 | Commented-out code | Dead code left in comments instead of deleted |
-   | 8 | Magic numbers | Hardcoded values without named constants |
-
-3. For each smell found, report:
-   - Which smell it is (by name and number)
-   - Where it is (file and line number)
-   - A one-line description of the specific instance
-   - The recommended fix
-
-4. Produce a summary table:
-
-   | Smell | Count | Severity |
-   |-------|-------|----------|
-   | (name) | (how many instances) | HIGH / MEDIUM / LOW |
-
-5. If the code is clean with no smells detected, say so. Don't invent problems.
-
-Important:
-- This is a READ-ONLY scan. Do NOT modify any files.
-- Be specific about locations. "There are some vague names" is not useful. "Line 42: variable `d` should be `daysSinceLastLogin`" is useful.
-- Prioritize by impact. A god object is worse than a single magic number.
+Do not modify files. Do not invent smells to complete a checklist. Prioritize correctness and security risks over style concerns.

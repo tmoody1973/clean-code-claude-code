@@ -1,175 +1,106 @@
-# Clean Code for Claude Code
+# Clean Code Toolkit for Claude Code
 
-A toolkit that brings clean code principles into every Claude Code session. Based on the 12 patterns from the [Clean Code Handbook](https://www.freecodecamp.org/news/the-clean-code-handbook/) by freeCodeCamp.
+Practical guardrails for people building products with AI-assisted coding. The toolkit helps you improve implementation quality, assess whether the product is actually ready, and prepare a repository for an incoming developer.
 
-Stop hoping your AI writes clean code. Make it automatic.
+[![Validate toolkit](https://github.com/tmoody1973/clean-code-claude-code/actions/workflows/validate.yml/badge.svg)](https://github.com/tmoody1973/clean-code-claude-code/actions/workflows/validate.yml)
 
----
+Clean code is not a score or a rigid set of line limits. In this toolkit, correctness, security, framework conventions, product behavior, and evidence from tests come first.
 
-## What's Inside
+## What is included
 
-| Tool | Type | What It Does |
-|------|------|-------------|
-| `CLAUDE.md` template | Config file | Enforces clean code rules in every conversation automatically |
-| `clean-code-review` | Skill | Deep 12-pattern code review with scoring and refactored examples |
-| `clean-code-scaffold` | Skill | Scaffolds clean project structure organized by concern |
-| `boy-scout-cleanup` | Skill | Applies the Boy Scout Rule when touching existing files |
-| `/add-clean-code` | Command | Installs the CLAUDE.md rules into any project |
-| `/refactor` | Command | Structured refactoring using extract, rename, simplify techniques |
-| `/code-smells` | Command | Quick scan for the 8 most common code smells |
-| `add-clean-code.sh` | Script | Terminal-based installer for CLAUDE.md rules |
+| Tool | Mode | Use it when you want to… |
+|---|---|---|
+| `clean-code-review` | Read-only skill | Review correctness, clarity, maintainability, tests, and handoff gaps |
+| `product-readiness-review` | Read-only skill | Assess readiness for users, launch, production, or due diligence |
+| `developer-handoff` | Documentation skill | Create a factual guide for an incoming developer |
+| `boy-scout-cleanup` | Editing skill | Make 3–5 small, behavior-preserving improvements |
+| `clean-code-scaffold` | Editing skill | Structure a project using its real framework conventions |
+| `/code-smells` | Read-only command | Run a quick contextual maintainability scan |
+| `/refactor` | Editing command | Make a focused structural change with verification |
+| `/add-clean-code` | Setup command | Add concise always-on rules to a project's `CLAUDE.md` |
 
----
+## Install from GitHub
 
-## Quick Start
+In Claude Code, add this repository as a marketplace and install the plugin:
 
-### 1. Install the CLAUDE.md rules (pick one method)
-
-**Option A: Slash command (inside Claude Code)**
-```bash
-# Copy the command to your global commands
-mkdir -p ~/.claude/commands
-cp commands/add-clean-code.md ~/.claude/commands/
-
-# Then in any project, type:
-/add-clean-code
+```text
+/plugin marketplace add tmoody1973/clean-code-claude-code
+/plugin install clean-code-toolkit@clean-code-toolkit
 ```
 
-**Option B: Bash script (from terminal)**
-```bash
-chmod +x scripts/add-clean-code.sh
-./scripts/add-clean-code.sh /path/to/your-project
-```
-
-**Option C: Manual copy**
-```bash
-cp templates/CLAUDE.md /path/to/your-project/CLAUDE.md
-```
-
-### 2. Install the skills
+To test a local clone before publishing:
 
 ```bash
-# Global (all projects)
-cp -r skills/clean-code-review ~/.claude/skills/clean-code-review
-cp -r skills/clean-code-scaffold ~/.claude/skills/clean-code-scaffold
-cp -r skills/boy-scout-cleanup ~/.claude/skills/boy-scout-cleanup
-
-# Or per-project
-cp -r skills/ /path/to/your-project/.claude/skills/
+claude --plugin-dir /absolute/path/to/clean-code-claude-code
 ```
 
-### 3. Install the commands
+Claude Code discovers the bundled skills and commands from the plugin.
+
+The plugin targets Claude Code **2.1.89 or newer**. The `/add-clean-code` command requires Bash and standard Unix tools, so it is supported on macOS and Linux. Contributors also need Python 3.9 or newer to run the repository validator.
+
+## Start using it
+
+Begin with a read-only tool:
+
+```text
+Review this repository and explain the important findings in plain English.
+```
+
+```text
+Is this product ready to hand to a developer and launch to early users?
+```
+
+```text
+Prepare a developer handoff for this repository. Verify every command you can and clearly list unknowns.
+```
+
+Use `/add-clean-code` when you want the concise standards applied automatically in a project. It appends the managed section without overwriting existing instructions.
+
+See [Start Here for Vibe Coders](docs/start-here-vibe-coders.md) for a plain-English workflow and [How It Works](docs/how-it-works.md) for tool boundaries.
+
+## Design principles
+
+- **Product intent first:** understand the user-visible outcome before optimizing internals.
+- **Read-only before editing:** assess risk before changing files.
+- **Evidence over confidence:** use tests, types, linters, builds, and repository facts.
+- **Framework conventions win:** generic advice never outranks the stack's real conventions.
+- **Thresholds are prompts:** line counts and parameter counts trigger inspection, not automatic failure.
+- **Focused diffs:** preserve behavior and unrelated user work.
+- **Honest handoffs:** unknowns remain unknown instead of becoming plausible AI guesses.
+
+## Repository structure
+
+```text
+.
+├── .claude-plugin/          # Claude Code plugin and marketplace manifests
+├── .github/workflows/       # Continuous validation
+├── commands/                # Explicit slash commands
+├── skills/                  # On-demand workflows and references
+├── scripts/                 # Portable installer and validation
+├── templates/CLAUDE.md      # Canonical always-on standards
+└── docs/                    # User guidance
+```
+
+The root `CLAUDE.md` contains contributor instructions for this repository. It is not plugin context; user-facing behavior lives in the skills, commands, and installable template.
+
+## Manual standards installation
+
+From a cloned repository:
 
 ```bash
-# Global (all projects)
-cp commands/*.md ~/.claude/commands/
-
-# Or per-project
-mkdir -p /path/to/your-project/.claude/commands
-cp commands/*.md /path/to/your-project/.claude/commands/
+./scripts/add-clean-code.sh /path/to/project
 ```
 
-### 4. Start coding
+The script creates or appends to `CLAUDE.md`. It refuses to overwrite a legacy section that cannot be migrated safely.
 
-Claude Code now follows clean code principles automatically. When you need a deep review, just ask: "review this code."
+Maintainers should follow the [release checklist](docs/release-checklist.md) before tagging a version.
 
----
+## Scope
 
-## How It Works
+This toolkit improves engineering judgment and communication; it does not replace specialist security, accessibility, legal, compliance, or production-operations review for high-risk products.
 
-The toolkit has two layers:
+## Credits and license
 
-**Always-on rules** (`CLAUDE.md`) load at the start of every conversation. They shape every line of code Claude writes without you asking. Think of it like a `.prettierrc` for Claude's behavior.
+Inspired by the [freeCodeCamp Clean Code Handbook](https://www.freecodecamp.org/news/the-clean-code-handbook/) and adapted for AI-assisted product development by Tarik Moody.
 
-**On-demand tools** (skills and commands) activate when you need them:
-- Say "review this code" and the `clean-code-review` skill loads the full 12-pattern handbook
-- Type `/refactor` to walk through a structured refactoring
-- Type `/code-smells` for a quick scan
-- Say "set up a clean project structure" and the scaffold skill activates
-
-For the complete guide, see [docs/how-it-works.md](docs/how-it-works.md).
-
----
-
-## The 12 Clean Code Patterns
-
-These are the patterns enforced by this toolkit, drawn from the [Clean Code Handbook](https://www.freecodecamp.org/news/the-clean-code-handbook/):
-
-1. **Meaningful Names** - Every name communicates intent
-2. **Single Responsibility** - Each function does one thing
-3. **Thoughtful Comments** - Explain why, not what
-4. **Readability** - Code reads like a story
-5. **Testing** - Every function with logic gets tested
-6. **Dependency Injection** - Pass dependencies, don't hardcode them
-7. **Clean Project Structure** - Organize by concern
-8. **Consistent Formatting** - Automated, uniform style
-9. **No Hardcoded Values** - Named constants and config
-10. **Short Functions** - Under 20 lines, delegate to helpers
-11. **The Boy Scout Rule** - Leave code cleaner than you found it
-12. **Open/Closed Principle** - Extend, don't modify
-
----
-
-## Project Structure
-
-```
-clean-code-claude-code/
-├── README.md                        # This file
-├── CLAUDE.md                        # Project context for this repo
-├── CONTRIBUTING.md                  # How to contribute
-├── LICENSE                          # MIT License
-├── .gitignore                       # Standard ignores
-│
-├── commands/                        # Claude Code slash commands
-│   ├── add-clean-code.md            # Install CLAUDE.md rules in a project
-│   ├── refactor.md                  # Structured refactoring workflow
-│   └── code-smells.md               # Quick code smell detection
-│
-├── skills/                          # Claude Code skills (on-demand)
-│   ├── clean-code-review/
-│   │   └── SKILL.md                 # Deep 12-pattern review
-│   ├── clean-code-scaffold/
-│   │   └── SKILL.md                 # Clean project structure setup
-│   └── boy-scout-cleanup/
-│       └── SKILL.md                 # Boy Scout Rule enforcement
-│
-├── scripts/                         # Shell scripts
-│   └── add-clean-code.sh            # Bash installer for CLAUDE.md
-│
-├── templates/                       # Copyable config templates
-│   └── CLAUDE.md                    # Clean code standards for any project
-│
-└── docs/                            # Documentation
-    └── how-it-works.md              # Complete usage guide
-```
-
----
-
-## Customizing
-
-All files are plain Markdown or bash. Edit freely:
-
-- **Add language-specific rules** to the CLAUDE.md template (Python, Rust, Go conventions)
-- **Add your team's conventions** (commit formats, PR standards)
-- **Remove patterns** that don't apply to your stack
-- **Add new patterns** -- all files are designed to be extended
-
----
-
-## Credits
-
-This toolkit is based on the [Clean Code Handbook](https://www.freecodecamp.org/news/the-clean-code-handbook/) published by [freeCodeCamp](https://www.freecodecamp.org/). The handbook distills clean code principles into 12 actionable patterns with real-world examples. This project adapts those patterns into tools that work natively with [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
-
-**Author:** Tarik Moody
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on adding new skills, commands, and language-specific templates.
-
----
-
-## License
-
-MIT
+MIT License. See [LICENSE](LICENSE).

@@ -1,32 +1,29 @@
-Perform a structured refactoring on the code the user provides or the file they specify.
+---
+description: Perform a focused structural refactor while preserving observable behavior and verifying the change.
+---
 
-Follow these steps exactly:
+Refactor the code or files identified by the user.
 
-1. Read the code to be refactored. If the user specified a file, read that file. If they pasted code, use that.
+## Before editing
 
-2. Analyze the code against these refactoring techniques (from the Clean Code Handbook):
+1. Read repository guidance, inspect the working tree, and preserve unrelated user changes.
+2. Identify callers, exports, tests, public contracts, side effects, and configured checks.
+3. State the structural problem and the intended boundary of the refactor.
+4. Determine how behavior will be verified before and after. Existing tests are evidence only if they cover the affected behavior.
+5. If verification is inadequate, propose a characterization test. Get explicit approval before adding tests that require a meaningful scope expansion or before proceeding with a behavior-adjacent refactor the user may not be able to verify.
 
-   **Extract Method** - Are there blocks of logic that should be their own named functions?
-   **Rename Variable** - Are there names that don't clearly communicate their purpose?
-   **Simplify Conditionals** - Are there nested if/else chains that could use early returns or be flattened?
-   **Inline Temp** - Are there single-use variables that add no clarity?
-   **Replace Conditional with Polymorphism** - Are there growing if/else or switch chains that should be classes?
-   **Remove Dead Code** - Is there commented-out code, unused variables, or unreachable branches?
+## Refactor
 
-3. For each issue found, categorize its impact:
-   - HIGH: Makes the code significantly harder to understand or maintain
-   - MEDIUM: Noticeable improvement to readability or structure
-   - LOW: Minor cleanup
+- Prefer the smallest structural change that solves the identified problem.
+- Preserve public APIs, schemas, evaluation order, strictness, side effects, and error behavior unless the user explicitly requests a migration.
+- Use extract, rename, simplify, move, inline, composition, or polymorphism only when the context supports it.
+- Do not apply arbitrary function-length, parameter-count, or nesting thresholds as rules.
+- Do not mix unrelated cleanup or feature work into the diff.
 
-4. Apply the refactoring. Write the refactored code to the file (or present it if the user pasted code).
+## Verify and report
 
-5. Show a summary of what changed:
-   - List each refactoring applied with a one-line explanation
-   - Show before/after for the most significant change
-   - Note any further improvements that could be made but were out of scope
+1. Run focused tests, then relevant type checks, linters, builds, or broader tests when practical.
+2. If a check fails, diagnose it and reverse only your own offending hunk when necessary. Never discard unrelated user work.
+3. Summarize the design problem, files changed, behavior-preservation evidence, commands run, and remaining risks.
 
-Important:
-- Do NOT change behavior. Refactoring means improving structure without altering what the code does.
-- Preserve all existing tests. If tests break, the refactoring is wrong.
-- Apply the Boy Scout Rule: leave the code cleaner than you found it, but don't rewrite the entire file.
-- Focus on the highest-impact improvements first.
+Refactoring changes structure, not intended behavior. If intended behavior changes, name the work accurately as a feature or bug fix.

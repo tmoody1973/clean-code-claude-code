@@ -15,3 +15,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Python validation artifacts
+__pycache__/
+*.pyc

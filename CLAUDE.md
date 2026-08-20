@@ -1,29 +1,22 @@
-# Clean Code for Claude Code
+# Clean Code Toolkit Repository
 
-This repository is a Claude Code toolkit that enforces clean code principles. It contains skills, commands, scripts, and templates based on the freeCodeCamp Clean Code Handbook.
+This repository packages Claude Code skills, commands, templates, and scripts for AI-assisted product builders.
 
-## Project Overview
+## Product goal
 
-- **Owner:** Tarik Moody
-- **Purpose:** Shareable clean code rules and tools for Claude Code users
-- **Source:** Based on https://www.freecodecamp.org/news/the-clean-code-handbook/
+Help a vibe coder build software that works, understand the risks in it, and hand it to a developer without forcing generic clean-code dogma onto every framework.
 
-## Structure
+## Repository rules
 
-- `commands/` - Claude Code slash commands (add-clean-code, refactor, code-smells)
-- `skills/` - On-demand skills (clean-code-review, clean-code-scaffold, boy-scout-cleanup)
-- `scripts/` - Bash scripts for terminal-based setup
-- `templates/` - CLAUDE.md template for any project
-- `docs/` - Complete usage documentation
+- Keep read-only review, local cleanup, structural refactoring, product assessment, and handoff as distinct workflows.
+- `templates/CLAUDE.md` is the canonical always-on standards block. Installers reference it directly.
+- Follow current Claude Code plugin conventions in `.claude-plugin/`.
+- Keep skill frontmatter valid and quote descriptions containing colons.
+- Keep core `SKILL.md` files concise; place detailed rubrics and output templates in `references/`.
+- Every example must obey the safety rule it demonstrates.
+- Never describe a change as behavior-preserving without considering public names, strictness, order, mutation, errors, and side effects.
+- Update README and docs whenever tools, routing, or installation changes.
 
-## Audience
+## Validation
 
-Claude Code users who want clean code principles enforced automatically in their projects. This is a documentation and tooling repo -- there is no application code to run.
-
-## When editing this repo
-
-- Keep all examples in JavaScript (matching the handbook)
-- Every pattern must have a Bad and Good code example
-- Skills use YAML frontmatter with name, description
-- Commands are plain Markdown with step-by-step instructions
-- Credit freeCodeCamp in any new documentation
+Run `./scripts/validate-toolkit.sh` before committing. Runtime-test the installer in a temporary directory after changing it.

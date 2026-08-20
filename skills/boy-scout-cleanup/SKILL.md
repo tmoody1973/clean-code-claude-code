@@ -1,109 +1,87 @@
 ---
 name: boy-scout-cleanup
-description: Apply the Boy Scout Rule to existing code -- leave every file cleaner than you found it. Use this skill when the user is working in an existing codebase and asks to clean up code, improve existing files, apply the Boy Scout Rule, tidy up a module, or says things like "clean this up while you're in there," "this file needs some love," "improve this code," or "make this better." Performs incremental cleanup without changing behavior.
+description: "Make 3–5 small, local, behavior-preserving improvements to existing code. Use when the user asks to tidy a file, clean up code while working nearby, remove local clutter, or make a module easier to read. Do not use for a read-only review, public API changes, file moves, broad rewrites, or feature work."
 ---
 
-# Boy Scout Cleanup Skill
+# Boy Scout Cleanup
 
-Use this skill to apply the Boy Scout Rule (Clean Code Pattern 11): leave every file cleaner than you found it. This is for incremental improvement, not full rewrites.
+Leave the requested code a little easier to understand without changing its observable behavior.
 
-## Cleanup Workflow
+## Safety check
 
-1. Read the file(s) the user wants cleaned up
-2. Identify cleanup opportunities using the checklist below
-3. Categorize each by impact (HIGH / MEDIUM / LOW)
-4. Apply HIGH and MEDIUM fixes
-5. List LOW fixes as suggestions for the user to consider
-6. Verify no behavior changed (if tests exist, run them)
+Before editing:
 
----
+1. Read repository guidance and inspect the working tree so user changes are preserved.
+2. Identify the file's callers, exports, tests, and configured checks.
+3. Decide what evidence can verify behavior: focused tests, type checks, lint, build, or careful call-site inspection.
+4. If a proposed change could affect behavior and verification is weak, either add a characterization test with the user's approval or leave the change as a recommendation.
 
-## Boy Scout Cleanup Checklist
+No edit is literally zero-risk. Unused imports may have side effects, comments may preserve important context, and renames may cross public boundaries. Inspect before removing or renaming.
 
-Work through each category in order:
+## Good cleanup candidates
 
-### 1. Names (Pattern 1)
+- Clarify a local variable without changing an external name.
+- Remove proven unreachable code or a proven-unused import.
+- Reduce nesting while preserving the exact conditions and evaluation order.
+- Extract a domain value whose meaning is otherwise unclear.
+- Use the project's formatter or import organizer.
+- Improve a misleading comment or delete one that demonstrably restates the code.
 
-- [ ] Rename single-letter variables to descriptive names
-- [ ] Rename vague functions (`handleData`, `processStuff`, `doWork`)
-- [ ] Replace abbreviations with full words unless universally understood
-- [ ] Ensure class names are nouns, function names are verbs
+## Out of scope
 
-### 2. Dead Code
+- Public API, schema, protocol, or behavior changes
+- Moving files or splitting modules
+- New validation, error handling, features, or dependencies
+- Speculative abstractions
+- Repository-wide style rewrites
 
-- [ ] Delete commented-out code (git remembers it)
-- [ ] Remove unused variables and imports
-- [ ] Remove unreachable code after return/throw statements
-- [ ] Delete empty catch blocks or replace with proper handling
+Use `/refactor` for structural work and `clean-code-review` for read-only assessment.
 
-### 3. Function Length (Pattern 10)
+## Workflow
 
-- [ ] Extract functions longer than 20 lines into smaller helpers
-- [ ] Each extracted function does exactly one thing
-- [ ] Give extracted functions names that describe their purpose
-
-### 4. Conditionals
-
-- [ ] Replace 3+ levels of nesting with early returns
-- [ ] Simplify `if (x === true)` to `if (x)`
-- [ ] Replace growing if/else chains with lookup objects or polymorphism
-
-### 5. Magic Values (Pattern 9)
-
-- [ ] Extract hardcoded numbers into named constants
-- [ ] Extract hardcoded strings into constants or config
-- [ ] Move configuration values to a config file or environment variables
-
-### 6. Formatting (Pattern 8)
-
-- [ ] Add blank lines between logical sections
-- [ ] Ensure consistent indentation
-- [ ] Group related imports together
-
----
-
-## Rules
-
-- **Never change behavior.** This is cleanup, not refactoring. The code must do exactly what it did before.
-- **Don't rewrite the file.** Fix 3-5 things per pass. Incremental improvement compounds.
-- **Run tests after cleanup.** If any test fails, revert that specific change.
-- **Don't add features.** Don't add error handling that wasn't there, validation that wasn't there, or types that weren't there. That's enhancement, not cleanup.
-- **Respect existing patterns.** If the codebase uses a specific style (even if you disagree), stay consistent with it.
-
----
+1. Choose at most 3–5 related improvements.
+2. Apply the smallest possible patches; do not rewrite the whole file.
+3. Preserve strictness, ordering, side effects, mutation, exceptions, and public names.
+4. Run the narrowest relevant checks, followed by broader configured checks when practical.
+5. If a check fails, diagnose whether the edit caused it. Reverse only your own offending hunk; never discard unrelated user changes.
+6. Summarize what changed, why it is behavior-preserving, and what verification ran.
 
 ## Example
 
-**Before:**
+Before:
+
 ```javascript
 function proc(d) {
-    let r = [];
-    for (let i = 0; i < d.length; i++) {
-        if (d[i].active === true) {
-            if (d[i].age >= 18) {
-                r.push(d[i]);
-            }
-        }
+  let r = [];
+  for (let i = 0; i < d.length; i++) {
+    if (d[i].active === true) {
+      if (d[i].age >= 18) {
+        r.push(d[i]);
+      }
     }
-    // old filter logic
-    // r = r.filter(x => x.score > 50);
-    return r;
+  }
+  return r;
 }
 ```
 
-**After:**
+Safer local cleanup:
+
 ```javascript
 const MINIMUM_AGE = 18;
 
-function filterEligibleUsers(users) {
-    return users.filter(user => user.active && user.age >= MINIMUM_AGE);
+function proc(users) {
+  const eligibleUsers = [];
+
+  for (let index = 0; index < users.length; index++) {
+    const user = users[index];
+
+    if (user.active === true && user.age >= MINIMUM_AGE) {
+      eligibleUsers.push(user);
+    }
+  }
+
+  return eligibleUsers;
 }
 ```
 
-**What changed:**
-- Renamed `proc` to `filterEligibleUsers` (Pattern 1: Meaningful Names)
-- Renamed `d` to `users`, `r` to return value (Pattern 1)
-- Replaced nested loop with `.filter()` (Pattern 10: Short Functions)
-- Simplified `=== true` to truthy check (Pattern 4: Readability)
-- Extracted `18` to `MINIMUM_AGE` constant (Pattern 9: No Hardcoded Values)
-- Deleted commented-out code (Pattern 11: Boy Scout Rule)
+The externally visible function name and strict boolean check remain unchanged. Rename `proc` only after proving it is private or updating and verifying every caller.
