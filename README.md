@@ -28,6 +28,28 @@ The script detects the stack (Next.js, Convex, Fly, Netlify, Cloudflare Workers)
 
 Run the audit the day a project first goes live. Not before: while you are still sketching, tests change daily and a robot checking sketches slows you down. Not after: the moment a real person or a scheduled job depends on the app, a broken push has real cost. A simple trigger is "the same day you connect Vercel." Run it again before any launch, any schema change, and whenever you hand the repo to someone else.
 
+## Make it a habit
+
+The audit only helps if you remember to run it. If you use Claude Code, paste this into your global `~/.claude/CLAUDE.md` so the rule loads in every project without you thinking about it:
+
+```markdown
+# GOING LIVE
+
+The day a project first goes live, add CI the same day. "Live" means a real
+person, a cron job, or another service now depends on it. Connecting a deploy
+platform (Vercel, Fly, Netlify, Convex prod) counts as that day.
+
+- Before that day: do not nag about CI.
+- On that day, or whenever a live repo has no `.github/workflows/`: say so
+  once and offer the two-step fix. (1) A workflow that runs typecheck, tests,
+  and build on every PR and push to `main`; prove it by breaking one test,
+  watching it go red, then reverting. (2) Branch protection on `main`
+  requiring that check. This is a manual settings step; hand it to the human.
+- Before any launch, schema change, or handoff, offer to run the
+  `prod-readiness-coach` skill on the repo.
+- Never merge over a red check "just this once."
+```
+
 ## Install
 
 Copy this folder into your Claude Code skills directory:
