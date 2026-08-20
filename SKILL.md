@@ -3,7 +3,7 @@ name: prod-readiness-coach
 description: "Audits any code repository for production-readiness gaps (CI/CD pipeline, structured logging, error tracking, secrets management, CLAUDE.md/AGENTS.md, resilience/runbooks, multi-surface deployment and coordinated rollback risk, irreversible migrations, test coverage, dependency security) and produces two plain-English documents: a beginner-friendly audit explainer and a phase-gated Claude Code fix brief. Detects the repo's stack (frameworks, deploy platforms, runtimes) and loads matching stack-specific reference material so advice reflects real platform gotchas instead of generic checklist language. Use when a user asks to audit, check, or review a repo for production readiness, best practices, or launch-blockers, or asks to turn code-quality/DevOps findings into something a non-expert or self-taught (\"vibe coder\") developer can understand and act on."
 license: MIT
 metadata:
-  version: '2.2'
+  version: '2.3'
   author: tarikmoody
 ---
 
@@ -221,6 +221,21 @@ severity before starting the next phase"). Substance rules:
 - Confirm the manual-steps list actually captures everything flagged
   agentic-unsafe in steps 4 and 7 — this list existing and being accurate
   matters as much as the phases themselves.
+- **Name the source of every fact that isn't in the JSON.** Plan tiers
+  ("you're on Vercel Pro"), team size, traffic, who uses the app — if it
+  came from the user, write "you told me"; if you read it from a file,
+  name the file. Never state a platform or plan fact as if the tool found
+  it when it didn't. If a fix depends on such a fact (e.g. rollback target
+  range depends on plan), say so next to the fix.
+- **If you upgrade a `weak` pass to a confirmed win, name the command you
+  ran.** "I checked your full git history" must be backed by something
+  like `git log --all -- .env` or `git grep` over history that you
+  actually executed in this session. If you didn't run it, say the tool's
+  scan was pattern-based and leave it at that. A claim of work is a
+  finding; it gets the same evidence bar as any other.
+- Never instruct the agent to open a real secrets file. If variable names
+  are needed from `.env.local`, use `grep -o '^[A-Z_][A-Z0-9_]*' .env.local`
+  so values never enter the agent's context.
 
 ### 9. Deliver
 

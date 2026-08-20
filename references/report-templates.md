@@ -192,3 +192,9 @@ invent an entry to fill the section.}}
 - Preserve file-path evidence from the JSON output verbatim (e.g.
   `app/api/ats-check/route.ts`) inside the technical instruction blocks —
   precision matters there even though the surrounding prose is plain English.
+- Any fact that came from the user rather than the tool gets attributed
+  inline: "you told me you're on Vercel Pro, so...". Any hand-verification
+  you did gets its command named: "I ran `git log --all -- .env` and found
+  nothing."
+- Instructions must never have the agent read a secrets file. For variable
+  names use `grep -o '^[A-Z_][A-Z0-9_]*' .env.local`, never "read `.env.local`".
