@@ -1,10 +1,6 @@
 ---
 name: prod-readiness-coach
 description: "Audits any code repository for production-readiness gaps (CI/CD pipeline, structured logging, error tracking, secrets management, CLAUDE.md/AGENTS.md, resilience/runbooks, multi-surface deployment and coordinated rollback risk, irreversible migrations, test coverage, dependency security) and produces two plain-English documents: a beginner-friendly audit explainer and a phase-gated Claude Code fix brief. Detects the repo's stack (frameworks, deploy platforms, runtimes) and loads matching stack-specific reference material so advice reflects real platform gotchas instead of generic checklist language. Use when a user asks to audit, check, or review a repo for production readiness, best practices, or launch-blockers, or asks to turn code-quality/DevOps findings into something a non-expert or self-taught (\"vibe coder\") developer can understand and act on."
-license: MIT
-metadata:
-  version: '2.4'
-  author: tarikmoody
 ---
 
 # Production Readiness Coach
@@ -84,7 +80,7 @@ fingerprinting — never hand-roll detection logic in prose; run the real
 tool and translate its real output.
 
 ```bash
-python3 {skill_dir}/scripts/prod_audit.py --repo /path/to/repo \
+python3 <this-skill-folder>/scripts/prod_audit.py --repo /path/to/repo \
   --output /tmp/audit-<repo-name>.md --json /tmp/audit-<repo-name>.json \
   --context "{{the user's answer from step 1, verbatim, or omit the flag if skipped}}"
 ```
@@ -247,6 +243,18 @@ Share both markdown files. Mention the raw technical report/JSON exists
 and offer it if the user wants file-level detail, the full stack
 fingerprint, or wants to wire the tool into their own CI (`--fail-on
 critical` exit code makes it CI-gateable).
+
+## Relationship to other tools
+
+- This skill is the repeatable, script-backed scan plus the plain-English
+  teaching layer. Run it first.
+- Use `product-readiness-review` after it for the judgment layer: does the
+  product actually do what it claims for its users? That review reads the
+  product as a system; this one reads the repo's files.
+- Use `developer-handoff` when the goal is transferring the project, not
+  fixing it. Findings from this audit belong in that handoff's risk list.
+- The going-live rule ("the day a project goes live, add CI the same day")
+  ships in `templates/CLAUDE.md` via `/add-clean-code`.
 
 ## Notes on the underlying tool
 

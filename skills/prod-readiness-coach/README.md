@@ -52,10 +52,11 @@ platform (Vercel, Fly, Netlify, Convex prod) counts as that day.
 
 ## Install
 
-Copy this folder into your Claude Code skills directory:
+This skill ships inside the Clean Code Toolkit plugin:
 
-```bash
-git clone https://github.com/tmoody1973/prod-readiness-coach.git ~/.claude/skills/prod-readiness-coach
+```text
+/plugin marketplace add tmoody1973/clean-code-claude-code
+/plugin install clean-code-toolkit@clean-code-toolkit
 ```
 
 Then ask Claude Code something like "audit this repo for production readiness."
@@ -93,7 +94,7 @@ The script reads files. It does not run your app. Secret detection is a conserva
 ## Tests
 
 ```bash
-python3 -m unittest discover tests
+python3 -m unittest discover skills/prod-readiness-coach/tests
 ```
 
 ## Layout

@@ -35,6 +35,10 @@ The installer:
 
 Use for implementation quality. It reviews relevant code for correctness, security, names, cohesion, control flow, interfaces, errors, tests, structure, and automation. Thresholds are clues, not verdicts.
 
+### `prod-readiness-coach`
+
+Runs a dependency-free Python script that scans the repository for production gaps (CI, structured logging, error tracking, secrets, runbooks, multi-surface rollback, irreversible migrations, tests, dependency security), detects the stack, and loads matching platform notes. Claude then writes two documents: a plain-English audit that teaches each concept, and a phase-gated fix brief for a coding agent with a separate manual-steps list. Same repo, same findings every run; `--fail-on critical` makes it usable in CI. Run it first, then `product-readiness-review` for product judgment.
+
 ### `product-readiness-review`
 
 Use for the whole product. It considers user journeys, functional behavior, security and privacy, accessibility, reliability, performance, delivery, operations, and handoff readiness.
@@ -76,6 +80,7 @@ The handoff links to authoritative files instead of duplicating the repository.
 | User intent | Tool | Changes files? |
 |---|---|---:|
 | “How healthy is this code?” | `clean-code-review` | No |
+| “Audit my repo for production readiness” | `prod-readiness-coach` | No |
 | “Is the product ready to launch?” | `product-readiness-review` | No |
 | “Give me a quick smell scan.” | `/code-smells` | No |
 | “Tidy this file safely.” | `boy-scout-cleanup` | Yes, locally |

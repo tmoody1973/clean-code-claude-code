@@ -553,7 +553,7 @@ def check_ci_pipeline(repo: Repo) -> list[CheckResult]:
         best_practice_ref=ref,
     ))
 
-    test_patterns = [r"\btest\b", r"\bvitest\b", r"\bjest\b", r"\bpytest\b",
+    test_patterns = [r"\btest\b", r"\bunittest\b", r"\bvitest\b", r"\bjest\b", r"\bpytest\b",
                       r"\bgo\s+test\b", r"npm\s+(run\s+)?test", r"pnpm\s+test",
                       r"yarn\s+test", r"rspec\b", r"phpunit\b"]
     has_test_step = any(re.search(p, combined, re.IGNORECASE) for p in test_patterns)

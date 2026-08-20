@@ -28,6 +28,7 @@ Assess the product as a working system, not merely as a collection of clean file
 
 ## Relationship to other tools
 
+- Use `prod-readiness-coach` first for the repeatable, script-backed scan of CI, logging, secrets, rollback, and tests, with plain-English teaching and a phased fix brief. This review is the judgment layer on top of it.
 - Use `clean-code-review` for implementation quality within code.
 - Use `developer-handoff` to create the documentation package for an incoming engineer.
 - Use `/code-smells` for a fast maintainability scan.

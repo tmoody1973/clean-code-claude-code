@@ -156,5 +156,12 @@ class Profiles(unittest.TestCase):
         self.assertNotEqual(check(r, "log-2")["status"], "n/a")
 
 
+class CiDetection(unittest.TestCase):
+    def test_unittest_step_counts_as_running_tests(self):
+        wf = "on: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: python -m unittest discover tests\n"
+        r = audit({".github/workflows/ci.yml": wf, "tests/test_x.py": "import unittest"})
+        self.assertEqual(check(r, "ci-2")["status"], "pass")
+
+
 if __name__ == "__main__":
     unittest.main()

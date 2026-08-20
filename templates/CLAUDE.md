@@ -41,6 +41,14 @@ Build software that is correct, safe to change, and understandable to the next d
 - Make small cleanup passes; do not combine feature work with broad aesthetic rewrites.
 - Do not rename public interfaces or move files without checking callers and migration impact.
 
+## Going live
+
+- The day a project first goes live, add CI the same day. "Live" means a real person, a scheduled job, or another service now depends on it; connecting a deploy platform counts.
+- Before that day, do not add CI ceremony to a sketch.
+- On that day, or whenever a live repo has no CI: add a workflow that runs typecheck, tests, and build on every pull request and push to `main`. Prove it by breaking one test, watching it fail, then reverting. Then require that check via branch protection, which is a manual settings step for the human.
+- Before a launch, schema change, or handoff, offer the `prod-readiness-coach` skill.
+- Never merge over a failing check "just this once."
+
 ## Developer handoff
 
 - Keep setup, run, test, and deployment instructions accurate when those workflows change.
