@@ -72,6 +72,14 @@ class CheckResult:
     recommendation: str = ""
     evidence: list[str] = field(default_factory=list)
     best_practice_ref: str = ""
+    # "verified": structural evidence (file/config/dependency exists).
+    # "weak": a text match only. A weak pass means "possible, verify by hand";
+    # it never counts as proof that the control exists.
+    confidence: str = "verified"
+
+
+# Checks whose pass is based on a text search, not a structural check.
+WEAK_PASS_IDS = {"log-4", "res-3", "sec-4"}
 
 
 @dataclass
@@ -109,6 +117,11 @@ CODE_EXTS = {
     ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rb",
     ".java", ".kt", ".rs", ".php", ".cs",
 }
+# Secrets live in config as often as in code, so the secret scan covers more.
+SECRET_SCAN_EXTS = CODE_EXTS | {
+    ".yaml", ".yml", ".json", ".toml", ".env", ".sh", ".tf", ".ini", ".cfg", ".properties",
+}
+COMMENT_LINE_RX = re.compile(r"^\s*(#|//|/\*|\*|<!--|--)")
 
 
 class Repo:
@@ -144,6 +157,19 @@ class Repo:
         self._git_files = files
         return self._git_files
 
+    def untracked_files(self) -> list[str]:
+        """Untracked, non-ignored files. Empty when not a git repo (walk already covers them)."""
+        if not self.is_git_repo():
+            return []
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(self.root), "ls-files", "--others", "--exclude-standard"],
+                capture_output=True, text=True, timeout=30, check=True,
+            )
+            return [l for l in out.stdout.splitlines() if l.strip()]
+        except Exception:
+            return []
+
     def exists(self, *candidates: str) -> Optional[str]:
         """Return the first candidate path (relative) that exists on disk, else None."""
         for c in candidates:
@@ -173,8 +199,10 @@ class Repo:
         except Exception:
             return ""
 
-    def grep(self, pattern: str, paths: Optional[list[str]] = None, flags=re.IGNORECASE) -> list[tuple[str, str]]:
-        """Return (file, matching line) for regex pattern across given files (or all code files)."""
+    def grep(self, pattern: str, paths: Optional[list[str]] = None, flags=re.IGNORECASE,
+             skip_comments: bool = True) -> list[tuple[str, str]]:
+        """Return (file, matching line) for regex pattern across given files (or all code files).
+        Comment lines are skipped by default so a TODO never counts as an implementation."""
         rx = re.compile(pattern, flags)
         hits = []
         target_files = paths if paths is not None else [
@@ -185,6 +213,8 @@ class Repo:
             if not content:
                 continue
             for line in content.splitlines():
+                if skip_comments and COMMENT_LINE_RX.match(line):
+                    continue
                 if rx.search(line):
                     hits.append((f, line.strip()[:160]))
         return hits
@@ -357,7 +387,7 @@ def detect_stack_fingerprint(repo: Repo) -> StackFingerprint:
     # Most Next.js apps on Vercel have no vercel.json. If Next.js is present and
     # no other frontend host was detected, assume Vercel (flagged as inferred).
     if "nextjs" in fp.frameworks and not any(
-            sfc in fp.deploy_surfaces for sfc in ("vercel", "netlify", "fly", "cloudflare-workers", "render", "heroku")):
+            sfc in fp.deploy_surfaces for sfc in ("vercel", "netlify", "fly", "cloudflare-workers", "render", "heroku", "docker")):
         fp.add_surface("vercel", "inferred: Next.js with no other deploy config (confirm)")
 
     independently_deployable = {"vercel", "netlify", "fly", "cloudflare-workers", "render", "heroku", "convex"}
@@ -407,14 +437,14 @@ def detect_stack_fingerprint(repo: Repo) -> StackFingerprint:
 # --------------------------------------------------------------------------
 
 def check_claude_md(repo: Repo) -> CheckResult:
-    path = repo.exists("CLAUDE.md")
+    path = repo.exists("CLAUDE.md", "AGENTS.md")
     ref = "https://docs.claude.com/en/docs/claude-code/memory"
     if not path:
         return CheckResult(
-            "agent-1", "AI Agent Context", "CLAUDE.md present",
+            "agent-1", "AI Agent Context", "CLAUDE.md / AGENTS.md present",
             "fail", "high",
-            "No CLAUDE.md found at the repository root.",
-            "Add a CLAUDE.md documenting build/test/lint commands, architecture "
+            "No CLAUDE.md or AGENTS.md found at the repository root.",
+            "Add a CLAUDE.md (or AGENTS.md) documenting build/test/lint commands, architecture "
             "conventions, and guardrails so AI coding agents (and new engineers) "
             "operate consistently instead of re-deriving project context every session.",
             best_practice_ref=ref,
@@ -428,16 +458,16 @@ def check_claude_md(repo: Repo) -> CheckResult:
         target_exists = repo.exists(target)
         if target_exists:
             return CheckResult(
-                "agent-1", "AI Agent Context", "CLAUDE.md present",
+                "agent-1", "AI Agent Context", "CLAUDE.md / AGENTS.md present",
                 "pass", "info",
-                f"CLAUDE.md delegates to {target}, which exists.",
+                f"{path} delegates to {target}, which exists.",
                 evidence=[path, target],
                 best_practice_ref=ref,
             )
         return CheckResult(
-            "agent-1", "AI Agent Context", "CLAUDE.md present",
+            "agent-1", "AI Agent Context", "CLAUDE.md / AGENTS.md present",
             "fail", "medium",
-            f"CLAUDE.md delegates to {target}, but that file was not found.",
+            f"{path} delegates to {target}, but that file was not found.",
             f"Create {target} or point CLAUDE.md at an existing file.",
             evidence=[path],
             best_practice_ref=ref,
@@ -445,16 +475,16 @@ def check_claude_md(repo: Repo) -> CheckResult:
     word_count = len(content.split())
     if word_count < 30:
         return CheckResult(
-            "agent-1", "AI Agent Context", "CLAUDE.md present",
+            "agent-1", "AI Agent Context", "CLAUDE.md / AGENTS.md present",
             "warn", "low",
-            f"CLAUDE.md exists but is very short ({word_count} words) — may be a stub.",
+            f"{path} exists but is very short ({word_count} words) — may be a stub.",
             "Expand CLAUDE.md with commands (build/test/lint/deploy), directory "
             "map, and any non-obvious conventions or footguns.",
             evidence=[path],
             best_practice_ref=ref,
         )
     return CheckResult(
-        "agent-1", "AI Agent Context", "CLAUDE.md present",
+        "agent-1", "AI Agent Context", "CLAUDE.md / AGENTS.md present",
         "pass", "info",
         f"CLAUDE.md exists with {word_count} words of guidance.",
         evidence=[path],
@@ -782,8 +812,12 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
         ))
 
     secret_hits = []
+    scan_files = sorted({
+        f for f in repo.git_files() + repo.untracked_files()
+        if Path(f).suffix in SECRET_SCAN_EXTS or Path(f).name.startswith(".env")
+    })
     for pattern, label in SECRET_PATTERNS:
-        for f, line in repo.grep(pattern, flags=0):
+        for f, line in repo.grep(pattern, paths=scan_files, flags=0, skip_comments=False):
             secret_hits.append((f, label, line))
     if secret_hits:
         results.append(CheckResult(
@@ -800,8 +834,9 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
         results.append(CheckResult(
             "sec-4", "Secrets & Environment Management", "No hardcoded secrets in source",
             "pass", "info",
-            "No obvious hardcoded secret patterns detected in tracked source files "
-            "(pattern-based scan — not a substitute for a dedicated secret scanner).",
+            f"No obvious hardcoded secret patterns in {len(scan_files)} tracked + untracked "
+            "code/config files (pattern-based scan of the working tree only — not git "
+            "history; not a substitute for gitleaks/truffleHog).",
             best_practice_ref=ref,
         ))
 
@@ -1221,6 +1256,11 @@ def run_audit(repo_path: Path) -> tuple[list[Category], StackFingerprint]:
     categories["Testing & Quality Gates"].checks.extend(check_testing_quality_gates(repo))
     categories["Dependency & Supply-chain Security"].checks.extend(check_dependency_security(repo))
 
+    for cat in categories.values():
+        for c in cat.checks:
+            if c.id in WEAK_PASS_IDS and c.status == "pass":
+                c.confidence = "weak"
+
     return list(categories.values()), fingerprint
 
 
@@ -1361,7 +1401,8 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         for c in sorted(cat.checks, key=lambda x: SEVERITY_ORDER.get(x.severity, 9)):
             status_icon = {"pass": "✅", "fail": "❌", "warn": "⚠️", "info": "ℹ️"}.get(c.status, "")
             detail = c.detail.replace("|", "\\|")
-            lines.append(f"| {c.title} | {status_icon} {c.status} | {SEVERITY_LABEL.get(c.severity, c.severity)} | {detail} |")
+            status_text = f"{status_icon} {c.status}" + (" (text match — verify by hand)" if c.confidence == "weak" else "")
+            lines.append(f"| {c.title} | {status_text} | {SEVERITY_LABEL.get(c.severity, c.severity)} | {detail} |")
         # Recommendations for any non-pass checks
         recs = [c for c in cat.checks if c.status != "pass" and c.recommendation]
         if recs:

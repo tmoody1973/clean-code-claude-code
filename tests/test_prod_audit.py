@@ -1,5 +1,6 @@
 """Smoke tests for prod_audit.py. Run: python3 -m unittest discover tests"""
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -72,6 +73,51 @@ class ConvexPairedRepo(unittest.TestCase):
         self.assertIn("convex", fp["adapters_matched"])
         self.assertIn("nextjs-vercel", fp["adapters_matched"])
         self.assertTrue(fp["multi_surface"])
+
+
+def check(report: dict, check_id: str) -> dict:
+    return next(k for c in report["categories"] for k in c["checks"] if k["id"] == check_id)
+
+
+class HonestyFixes(unittest.TestCase):
+    FAKE_KEY = 'AKIA' + 'ABCDEFGHIJKLMNOP'  # AWS access key shape
+
+    def test_secret_in_yaml_config_is_found(self):
+        r = audit({"config/production.yaml": f'aws_access_key_id: "{self.FAKE_KEY}"\n'})
+        self.assertEqual(check(r, "sec-4")["status"], "fail")
+
+    def test_secret_in_untracked_file_is_found_in_git_repo(self):
+        root = make_repo({"README.md": "x"})
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"],
+                       cwd=root, check=True)
+        (root / "leak.py").write_text(f'KEY = "{self.FAKE_KEY}"\n')  # untracked
+        cats, fp = prod_audit.run_audit(root)
+        r = prod_audit.render_json(cats, root.name, fp)
+        self.assertEqual(check(r, "sec-4")["status"], "fail")
+
+    def test_comment_only_mention_does_not_pass_rate_limit_or_correlation(self):
+        r = audit({"app.py": "# TODO: add rate-limit and correlation-id handling later\n"})
+        self.assertNotEqual(check(r, "res-3")["status"], "pass")
+        self.assertNotEqual(check(r, "log-4")["status"], "pass")
+
+    def test_text_match_pass_is_marked_weak(self):
+        r = audit({"app.py": "limiter = rate_limit(100)\nlog(request_id=rid)\n"})
+        self.assertEqual(check(r, "res-3")["confidence"], "weak")
+        self.assertEqual(check(r, "log-4")["confidence"], "weak")
+        self.assertEqual(check(r, "ci-1")["confidence"], "verified")
+
+    def test_nextjs_with_dockerfile_does_not_infer_vercel(self):
+        r = audit({**NextJsRepo.FILES, "Dockerfile": "FROM node:20"})
+        fp = r["stack_fingerprint"]
+        self.assertIn("docker", fp["deploy_surfaces"])
+        self.assertNotIn("vercel", fp["deploy_surfaces"])
+        self.assertNotIn("nextjs-vercel", fp["adapters_matched"])
+
+    def test_agents_md_alone_satisfies_agent_context_check(self):
+        r = audit({"AGENTS.md": "Build: npm run build. Test: npm test. " * 10})
+        self.assertEqual(check(r, "agent-1")["status"], "pass")
 
 
 if __name__ == "__main__":

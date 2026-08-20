@@ -3,7 +3,7 @@ name: prod-readiness-coach
 description: "Audits any code repository for production-readiness gaps (CI/CD pipeline, structured logging, error tracking, secrets management, CLAUDE.md/AGENTS.md, resilience/runbooks, multi-surface deployment and coordinated rollback risk, irreversible migrations, test coverage, dependency security) and produces two plain-English documents: a beginner-friendly audit explainer and a phase-gated Claude Code fix brief. Detects the repo's stack (frameworks, deploy platforms, runtimes) and loads matching stack-specific reference material so advice reflects real platform gotchas instead of generic checklist language. Use when a user asks to audit, check, or review a repo for production readiness, best practices, or launch-blockers, or asks to turn code-quality/DevOps findings into something a non-expert or self-taught (\"vibe coder\") developer can understand and act on."
 license: MIT
 metadata:
-  version: '2.0'
+  version: '2.1'
   author: tarikmoody
 ---
 
@@ -94,8 +94,10 @@ Read the JSON file (use the repo name in the path so parallel audits don't clash
 - `product_context` — echoes back whatever you passed via `--context`.
 - `categories` → each has `key`, `title`, `score`, and `checks`; each check has `id`, `title`, `status`
   (`pass`/`fail`/`warn`/`info`), `severity`, `detail`, `recommendation`,
-  `evidence` (file paths/line snippets), and `best_practice_ref` (a
-  citation URL).
+  `evidence` (file paths/line snippets), `best_practice_ref` (a
+  citation URL), and `confidence` (`verified` or `weak`). A `weak` pass
+  means the tool only found matching text — write it up as "looks like
+  this may exist; confirm by hand," never as a confirmed win.
 
 This structured data is the ground truth for everything you write next —
 never invent a finding that isn't in this JSON, and never soften a

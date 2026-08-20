@@ -51,9 +51,13 @@ Useful flags:
 
 Each category starts at 100 and loses points per failing check. The overall score is the average. The letter grade is capped at D whenever a critical finding exists, so a repo with no CI and no error tracking cannot show as "nearly ready" just because its other categories are clean.
 
+## Confidence
+
+Every check carries a `confidence` value. `verified` means a file, config, or dependency exists. `weak` means the tool only matched text, such as the word `rate_limit` in a source file. A weak pass shows as "verify by hand" in the report. It is a clue, not proof. Comment lines are skipped, so a TODO does not count as an implementation.
+
 ## Limits
 
-The script reads files. It does not run your app. Secret detection is a conservative regex and is not a replacement for gitleaks or truffleHog against full git history. The destructive-migration check catches common SQL patterns, not every way a migration can lose data.
+The script reads files. It does not run your app. Secret detection is a conservative regex over tracked and untracked code and config files in the working tree. It does not read git history, so it is not a replacement for gitleaks or truffleHog. The destructive-migration check catches common SQL patterns, not every way a migration can lose data.
 
 ## Tests
 
