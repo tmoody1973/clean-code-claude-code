@@ -67,14 +67,47 @@ Both ask "is it ready?" They answer different halves.
 - **`prod-readiness-coach`** runs a script. Same repo, same findings every time. It checks the plumbing: automatic tests, error alerts, secrets, undo plans, and whether a rollback on one platform leaves another out of sync. Run it first, the day you go live, and again before any launch.
 - **`product-readiness-review`** is Claude's judgment. Does the product do what it says? What would break first for a real person? Run it after the coach, when the plumbing is in.
 
+## What CI is, if nobody ever told you
+
+Imagine a group essay in a shared doc. One night someone deletes a paragraph by mistake. Nobody notices. The teacher reads it in the morning. That is how most vibe-coded apps work: you push a change, it goes live, and if it is broken your users are the teacher.
+
+CI (short for "continuous integration," a name you can forget) is a robot that reads the essay after every edit, before the teacher sees it. Each time you push code, a fresh computer in the cloud wakes up, downloads your project, installs it from scratch, runs your tests, and tries to build the app. If any step fails you get a red X and the change cannot go live. If it passes, a green check. Then the computer is thrown away.
+
+The fresh computer is the point. Your laptop has leftovers: old folders, forgotten settings. Code can work on your laptop because of a leftover and break everywhere else. The robot has no leftovers. If it works there, it works.
+
+Why it matters: you will forget to run tests. It will be late, the change will be "tiny," and you will skip it. The robot never skips. And a robot that only ever says "fine" is useless, so the first thing to do after adding CI is break one test on purpose, watch it go red, then fix it. That red X is the proof.
+
+One habit matters more than the file: when CI is red, stop and look. Never merge over a red X "just this once." The first time you do, the robot stops meaning anything.
+
 ## The going-live rule
 
-Add an automatic test runner (people call it CI) the day your app first goes live. Not before: while you are sketching, tests change daily and the robot just slows you down. Not after: the moment a real person or a scheduled job depends on the app, a broken push has a real cost.
+Add CI the day your app first goes live. Not before: while you are sketching, tests change daily and the robot just slows you down. Not after: the moment a real person or a scheduled job depends on the app, a broken push has a real cost.
 
-A simple trigger: the same day you connect Vercel, Fly, or Netlify, run the readiness coach. It will hand you the CI file.
+A simple trigger: the same day you connect Vercel, Fly, or Netlify, run the readiness coach. It will hand you the CI file. Then turn on branch protection in GitHub (Settings, Branches, add a rule for `main`, require the CI check) so the red X blocks a merge instead of just warning.
 
-`/add-clean-code` puts this rule into your project's `CLAUDE.md` so Claude reminds you at the right moment.
+`/add-clean-code` puts this rule into a project's `CLAUDE.md` so Claude reminds you at the right moment in that project.
 
+## Make it a habit everywhere
+
+`/add-clean-code` works per project. If you want the rule in every project without remembering, paste this into your global `~/.claude/CLAUDE.md`. Claude reads that file at the start of every session on your machine.
+
+```markdown
+# GOING LIVE
+
+The day a project first goes live, add CI the same day. "Live" means a real
+person, a cron job, or another service now depends on it. Connecting a deploy
+platform (Vercel, Fly, Netlify, Convex prod) counts as that day.
+
+- Before that day: do not nag about CI.
+- On that day, or whenever a live repo has no `.github/workflows/`: say so
+  once and offer the two-step fix. (1) A workflow that runs typecheck, tests,
+  and build on every PR and push to `main`; prove it by breaking one test,
+  watching it go red, then reverting. (2) Branch protection on `main`
+  requiring that check. This is a manual settings step; hand it to the human.
+- Before any launch, schema change, or handoff, offer to run the
+  `prod-readiness-coach` skill on the repo.
+- Never merge over a red check "just this once."
+```
 ## Requirements
 
 - Claude Code 2.1.89 or newer.
