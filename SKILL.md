@@ -3,7 +3,7 @@ name: prod-readiness-coach
 description: "Audits any code repository for production-readiness gaps (CI/CD pipeline, structured logging, error tracking, secrets management, CLAUDE.md/AGENTS.md, resilience/runbooks, multi-surface deployment and coordinated rollback risk, irreversible migrations, test coverage, dependency security) and produces two plain-English documents: a beginner-friendly audit explainer and a phase-gated Claude Code fix brief. Detects the repo's stack (frameworks, deploy platforms, runtimes) and loads matching stack-specific reference material so advice reflects real platform gotchas instead of generic checklist language. Use when a user asks to audit, check, or review a repo for production readiness, best practices, or launch-blockers, or asks to turn code-quality/DevOps findings into something a non-expert or self-taught (\"vibe coder\") developer can understand and act on."
 license: MIT
 metadata:
-  version: '2.1'
+  version: '2.2'
   author: tarikmoody
 ---
 
@@ -89,7 +89,16 @@ python3 {skill_dir}/scripts/prod_audit.py --repo /path/to/repo \
   --context "{{the user's answer from step 1, verbatim, or omit the flag if skipped}}"
 ```
 
-Read the JSON file (use the repo name in the path so parallel audits don't clash). Top-level fields that matter:
+Read the JSON file (use the repo name in the path so parallel audits don't clash).
+
+The tool guesses a **profile** (`web-app`, `api`, `worker`, `cli`,
+`library`) from the stack and reports it in `stack_fingerprint.profile`
+with `profile_source` (`guessed` or `given`). Checks that don't apply to
+that profile come back as `status: "n/a"` and are left out of the score.
+If the guess looks wrong for what the user described (e.g. they said
+"it's a CLI" but the profile is `web-app`), re-run with
+`--profile <kind>` before writing anything. Never list an `n/a` check as
+a finding or a win. When unsure, the tool picks the stricter profile. Top-level fields that matter:
 - `stack_fingerprint` — see step 4, this drives which adapter files to load.
 - `product_context` — echoes back whatever you passed via `--context`.
 - `categories` → each has `key`, `title`, `score`, and `checks`; each check has `id`, `title`, `status`

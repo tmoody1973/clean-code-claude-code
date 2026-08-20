@@ -81,6 +81,22 @@ class CheckResult:
 # Checks whose pass is based on a text search, not a structural check.
 WEAK_PASS_IDS = {"log-4", "res-3", "sec-4"}
 
+# What kind of thing the repo is. A check that does not apply to the profile
+# is reported as "n/a" and left out of the score. When the guess is unsure
+# we pick the stricter profile (web-app): a false failure is cheaper than a
+# skipped real check.
+PROFILES = ("web-app", "api", "worker", "cli", "library")
+_SERVICE_ONLY = {"log-3", "res-3"}                       # needs an HTTP surface
+_DEPLOYED_ONLY = {"log-1", "log-2", "log-4", "res-1", "res-2", "res-4", "res-5",
+                  "sec-5", "ms-1", "ci-5"} | _SERVICE_ONLY  # needs to run somewhere
+CHECK_SKIPS_BY_PROFILE = {
+    "web-app": set(),
+    "api": set(),
+    "worker": _SERVICE_ONLY,
+    "cli": _DEPLOYED_ONLY,
+    "library": _DEPLOYED_ONLY,
+}
+
 
 @dataclass
 class Category:
@@ -97,6 +113,10 @@ class Category:
             if c.status == "fail":
                 score -= SEVERITY_PENALTY.get(c.severity, 5)
         return max(0, score)
+
+    @property
+    def applicable(self) -> bool:
+        return any(c.status != "n/a" for c in self.checks)
 
     @property
     def blocking_count(self) -> int:
@@ -254,6 +274,8 @@ class StackFingerprint:
     deploy_evidence: dict[str, list[str]] = field(default_factory=dict)
     runtimes: list[str] = field(default_factory=list)
     migration_tooling: list[str] = field(default_factory=list)
+    profile: str = "web-app"
+    profile_source: str = "default"  # "given" | "guessed" | "default"
     multi_surface: bool = False
     multi_surface_evidence: list[str] = field(default_factory=list)
     adapters_matched: list[str] = field(default_factory=list)
@@ -1240,9 +1262,32 @@ CATEGORY_META = [
 ]
 
 
-def run_audit(repo_path: Path) -> tuple[list[Category], StackFingerprint]:
+def guess_profile(repo: Repo, fp: StackFingerprint) -> str:
+    """Only pick a lenient profile on a clear signal; otherwise stay strict."""
+    pkg = repo.package_json()
+    web = {"nextjs", "remix", "sveltekit", "nuxt", "astro"}
+    api = {"convex", "express", "fastify", "nestjs", "django", "flask", "fastapi"}
+    if web & set(fp.frameworks):
+        return "web-app"
+    if api & set(fp.frameworks):
+        return "api"
+    if pkg.get("bin"):
+        return "cli"
+    if pkg and not fp.deploy_surfaces and not pkg.get("private") and (pkg.get("main") or pkg.get("exports")):
+        return "library"
+    if re.search(r"\[project\.scripts\]", repo.read("pyproject.toml")):
+        return "cli"
+    return "web-app"
+
+
+def run_audit(repo_path: Path, profile: Optional[str] = None) -> tuple[list[Category], StackFingerprint]:
     repo = Repo(repo_path)
     fingerprint = detect_stack_fingerprint(repo)
+    if profile:
+        fingerprint.profile, fingerprint.profile_source = profile, "given"
+    else:
+        fingerprint.profile, fingerprint.profile_source = guess_profile(repo, fingerprint), "guessed"
+    skips = CHECK_SKIPS_BY_PROFILE[fingerprint.profile]
     categories = {key: Category(key, title, desc, ref) for key, title, desc, ref in CATEGORY_META}
 
     categories["AI Agent Context"].checks.append(check_claude_md(repo))
@@ -1260,6 +1305,10 @@ def run_audit(repo_path: Path) -> tuple[list[Category], StackFingerprint]:
         for c in cat.checks:
             if c.id in WEAK_PASS_IDS and c.status == "pass":
                 c.confidence = "weak"
+            if c.id in skips:
+                c.status, c.severity = "n/a", "info"
+                c.detail = f"Not applicable to a {fingerprint.profile} project. {c.detail}"
+                c.recommendation = ""
 
     return list(categories.values()), fingerprint
 
@@ -1269,9 +1318,10 @@ def run_audit(repo_path: Path) -> tuple[list[Category], StackFingerprint]:
 # --------------------------------------------------------------------------
 
 def overall_score(categories: list[Category]) -> int:
-    if not categories:
+    scored = [c for c in categories if c.applicable]
+    if not scored:
         return 0
-    return round(sum(c.score for c in categories) / len(categories))
+    return round(sum(c.score for c in scored) / len(scored))
 
 
 def grade_for(score: int, critical_count: int = 0) -> str:
@@ -1342,6 +1392,10 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         )
         lines.append("")
 
+    if fp is not None:
+        lines.append(f"**Profile:** `{fp.profile}` ({fp.profile_source}). Checks that do not apply to this "
+                     "profile are marked n/a and left out of the score. Wrong profile? Re-run with `--profile`.")
+        lines.append("")
     lines.append(f"## Overall Readiness Score: {score}/100 — {grade}")
     lines.append("")
     if blocking:
@@ -1399,7 +1453,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         lines.append("| Check | Status | Severity | Detail |")
         lines.append("|---|---|---|---|")
         for c in sorted(cat.checks, key=lambda x: SEVERITY_ORDER.get(x.severity, 9)):
-            status_icon = {"pass": "✅", "fail": "❌", "warn": "⚠️", "info": "ℹ️"}.get(c.status, "")
+            status_icon = {"pass": "✅", "fail": "❌", "warn": "⚠️", "info": "ℹ️", "n/a": "➖"}.get(c.status, "")
             detail = c.detail.replace("|", "\\|")
             status_text = f"{status_icon} {c.status}" + (" (text match — verify by hand)" if c.confidence == "weak" else "")
             lines.append(f"| {c.title} | {status_text} | {SEVERITY_LABEL.get(c.severity, c.severity)} | {detail} |")
@@ -1471,6 +1525,9 @@ def main():
                          help="Optional one-line product context (e.g. 'what's the worst case if this loses "
                               "data or goes down for a day') used downstream to reprioritize findings. Does "
                               "not change the deterministic scores.")
+    parser.add_argument("--profile", choices=PROFILES, default=None,
+                         help="What kind of project this is. Checks that do not apply are marked n/a and "
+                              "skipped in scoring. Guessed from the stack when omitted (strict when unsure).")
     args = parser.parse_args()
 
     repo_path = Path(args.repo)
@@ -1478,7 +1535,7 @@ def main():
         print(f"error: repo path does not exist: {repo_path}", file=sys.stderr)
         sys.exit(2)
 
-    categories, fingerprint = run_audit(repo_path)
+    categories, fingerprint = run_audit(repo_path, args.profile)
     md = render_markdown(categories, repo_path.resolve().name, fingerprint, args.context)
 
     if args.output:

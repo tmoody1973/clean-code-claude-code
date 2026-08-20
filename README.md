@@ -45,11 +45,16 @@ python3 scripts/prod_audit.py --repo /path/to/repo --output report.md --json rep
 Useful flags:
 
 - `--context "..."` passes a one-line note about what is at stake (used to shape the prose, never the score)
+- `--profile cli` tells the tool what kind of project this is (see Profiles)
 - `--fail-on critical` exits non-zero if any critical finding remains, so you can use it in CI
 
 ## Scoring
 
 Each category starts at 100 and loses points per failing check. The overall score is the average. The letter grade is capped at D whenever a critical finding exists, so a repo with no CI and no error tracking cannot show as "nearly ready" just because its other categories are clean.
+
+## Profiles
+
+Not every check fits every repo. A command-line tool has no health endpoint. Pass `--profile` with one of `web-app`, `api`, `worker`, `cli`, or `library`. Checks that do not apply are marked `n/a` and left out of the score. If you omit the flag the tool guesses from the stack and prints its guess at the top of the report. When the guess is unsure it picks `web-app`, the strictest profile, because a false failure is cheaper than a skipped real check.
 
 ## Confidence
 
