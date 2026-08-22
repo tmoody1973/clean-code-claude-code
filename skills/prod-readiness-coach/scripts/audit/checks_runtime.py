@@ -40,6 +40,7 @@ def check_structured_logging(repo: Repo) -> list[CheckResult]:
             "log-1", "Structured Logging & Observability", "Structured logging library configured",
             "pass", "info",
             f"Structured logging dependency detected: {', '.join(matched_logging_libs)}.",
+            evidence=[f"dependency: {lib}" for lib in matched_logging_libs],
             best_practice_ref=ref,
         ))
     else:
@@ -66,6 +67,7 @@ def check_structured_logging(repo: Repo) -> list[CheckResult]:
             "log-2", "Structured Logging & Observability", "Error tracking / APM configured",
             "pass", "info",
             f"Error tracking / observability dependency detected: {', '.join(sorted(set(matched_apm)))}.",
+            evidence=[f"dependency: {lib}" for lib in sorted(set(matched_apm))],
             best_practice_ref=ref,
         ))
     else:
@@ -202,7 +204,8 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
         results.append(CheckResult(
             "sec-3", "Secrets & Environment Management", "No real .env files committed to git",
             "pass", "info",
-            "No non-template .env files are tracked by git.",
+            f"No non-template .env files are tracked by git ({len(repo.git_files())} tracked files checked).",
+            evidence=[f"scope: {len(repo.git_files())} git-tracked files, none matching .env"],
             best_practice_ref=ref,
         ))
 
@@ -234,7 +237,8 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
         results.append(CheckResult(
             "sec-4", "Secrets & Environment Management", "No hardcoded secrets in source",
             "pass", "info",
-            f"No obvious hardcoded secret patterns in {len(scan_files)} tracked + untracked "
+            evidence=[f"scope: {len(scan_files)} code and config files scanned in the working tree"],
+            detail=f"No obvious hardcoded secret patterns in {len(scan_files)} tracked + untracked "
             "code/config files (pattern-based scan of the working tree only — not git "
             "history; not a substitute for gitleaks/truffleHog).",
             best_practice_ref=ref,
@@ -429,6 +433,8 @@ def check_multi_surface_deployment(repo: Repo, fp: StackFingerprint) -> list[Che
             (f"({', '.join(fp.deploy_surfaces)}). " if fp.deploy_surfaces else "(no deploy platform config found). ") +
             "Standard rollback documentation (see Resilience & Failover) is sufficient — "
             "there is no second surface that can drift out of sync.",
+            evidence=([f"deploy surface: {x}" for x in fp.deploy_surfaces]
+                      or ["scope: no deploy platform config found in the repo"]),
             best_practice_ref=ref,
         ))
     else:
