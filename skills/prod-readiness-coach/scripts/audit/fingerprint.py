@@ -30,6 +30,7 @@ class StackFingerprint:
     waiver_problems: list = field(default_factory=list)
     profile: str = "web-app"
     profile_source: str = "default"  # "given" | "guessed" | "default"
+    is_git_repo: bool = True
     multi_surface: bool = False
     multi_surface_evidence: list[str] = field(default_factory=list)
     adapters_matched: list[str] = field(default_factory=list)
@@ -78,6 +79,7 @@ def parse_compose_services(content: str) -> dict[str, str]:
 
 def detect_stack_fingerprint(repo: Repo) -> StackFingerprint:
     fp = StackFingerprint()
+    fp.is_git_repo = repo.is_git_repo()
     pkg = repo.package_json()
     deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
 

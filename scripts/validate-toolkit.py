@@ -159,16 +159,38 @@ def validate_installer() -> None:
             raise ValidationError("Installer did not preserve a legacy Clean Code Standards section")
 
 
+def validate_house_style() -> None:
+    """check_report.py rejects em and en dashes in generated docs. The toolkit
+    that enforces that rule on other people's reports cannot ship them itself."""
+    offenders = []
+    for base in ("skills", "commands", "templates"):
+        directory = ROOT / base
+        if not directory.exists():
+            continue
+        for path in sorted(directory.rglob("*.md")):
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            for lineno, line in enumerate(text.splitlines(), 1):
+                if "\u2014" in line or "\u2013" in line:
+                    offenders.append(f"{path.relative_to(ROOT)}:{lineno}")
+    if offenders:
+        raise ValidationError(
+            "em or en dash in shipped text (house style uses plain punctuation): "
+            + ", ".join(offenders[:10])
+            + (f" and {len(offenders) - 10} more" if len(offenders) > 10 else "")
+        )
+
+
 def main() -> int:
     try:
         validate_skills()
         validate_plugin()
         validate_installer()
+        validate_house_style()
     except (ValidationError, OSError, subprocess.CalledProcessError) as error:
         print(f"Validation failed: {error}")
         return 1
 
-    print("Validated skills, plugin manifests, and installer runtime successfully.")
+    print("Validated skills, plugin manifests, installer runtime, and house style successfully.")
     return 0
 
 

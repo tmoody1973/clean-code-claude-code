@@ -1,6 +1,6 @@
 ---
 name: boy-scout-cleanup
-description: "Make 3–5 small, local, behavior-preserving improvements to existing code. Use when the user asks to tidy a file, clean up code while working nearby, remove local clutter, or make a module easier to read. Do not use for a read-only review, public API changes, file moves, broad rewrites, or feature work."
+description: "Make 3 to 5 small, local, behavior-preserving improvements to existing code. Use when the user asks to tidy a file, clean up code while working nearby, remove local clutter, or make a module easier to read. Do not use for a read-only review, public API changes, file moves, broad rewrites, or feature work."
 ---
 
 # Boy Scout Cleanup
@@ -42,7 +42,7 @@ Use `/refactor` for structural work and `clean-code-review` for read-only assess
 
 ## Workflow
 
-1. Choose at most 3–5 related improvements.
+1. Choose at most 3 to 5 related improvements.
 2. Apply the smallest possible patches; do not rewrite the whole file.
 3. Preserve strictness, ordering, side effects, mutation, exceptions, and public names.
 4. Run the narrowest relevant checks, followed by broader configured checks when practical.

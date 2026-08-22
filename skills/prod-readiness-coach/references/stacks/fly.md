@@ -13,7 +13,7 @@ dedicated rollback command exists
 [#4586](https://community.fly.io/t/manual-rollback-to-earlier-version/4586),
 [#24312](https://community.fly.io/t/how-to-delete-old-releases/24312)). A third-party wrapper
 CLI ([fly-rollback-cli](https://github.com/sudhanshug16/fly-rollback-cli)) exists specifically
-to fill this gap — its existence is itself evidence that the platform gap is real and commonly
+to fill this gap, its existence is itself evidence that the platform gap is real and commonly
 felt.
 
 **Never write a fix brief or manual-steps list that says "run `fly rollback`."** That command
@@ -23,8 +23,8 @@ does not exist and an agent or human following the brief will hit an error.
 
 Per [Fly's own rollback guide](https://fly.io/docs/blueprints/rollback-guide/):
 
-1. `fly releases --image` — lists previous release image hashes for the app.
-2. `fly deploy -i <image-name>` — redeploys that exact previous image.
+1. `fly releases --image` lists previous release image hashes for the app.
+2. `fly deploy -i <image-name>` redeploys that exact previous image.
 
 This is a full redeploy of an old image, not an instant routing-layer switch like Vercel's
 rollback. Write fix briefs and runbook recommendations using this exact two-step procedure,
@@ -34,7 +34,7 @@ not a generic "roll back to the previous deploy" instruction.
 
 Fly apps commonly run schema migrations via `release_command` in `fly.toml`, executed once per
 deploy before the new release goes live. Redeploying an older image via the procedure above
-does **not** reverse a migration that already ran against the database — the database state
+does **not** reverse a migration that already ran against the database, the database state
 stays at whatever the most recent `release_command` left it at. If this repo's
 `stack_fingerprint.migration_tooling` shows any migration tool alongside a `fly` deploy
 surface, treat this as a first-class multi-surface risk: the "surfaces" here are the app
@@ -47,5 +47,5 @@ rather than folding it into a generic "document your rollback procedure" note.
   contexts, authenticate via the `FLY_API_TOKEN` environment variable, not an interactive
   `fly auth login` (which opens a browser flow).
 - Before recommending `fly deploy -i <image>` as an automated remediation step, confirm the
-  target image hash actually exists in `fly releases --image` output for this app — don't
+  target image hash actually exists in `fly releases --image` output for this app, don't
   fabricate or guess an image reference.

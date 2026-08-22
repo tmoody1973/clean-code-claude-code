@@ -59,6 +59,14 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
             "which stack-specific reference material gets applied on top of this report."
         )
         lines.append("")
+        if not fp.is_git_repo:
+            lines.append(
+                "> **This folder is not a git repository.** Files were found by walking the "
+                "directory, so `.gitignore` was not applied and build output or dependencies "
+                "may have been read as source. Checks about tracked files and untracked files "
+                "cannot run. Run `git init` and commit before trusting this report."
+            )
+            lines.append("")
         lines.append(f"- **Languages:** {', '.join(fp.languages) or '_none detected_'}")
         lines.append(f"- **Package manager(s):** {', '.join(fp.package_managers) or '_none detected_'}")
         lines.append(f"- **Frameworks:** {', '.join(fp.frameworks) or '_none detected_'}")
