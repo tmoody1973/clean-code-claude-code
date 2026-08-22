@@ -441,6 +441,91 @@ class DependencyMatchingIsExact(unittest.TestCase):
         self.assertIn("dependency: pino", k["evidence"])
 
 
+NEXT_BASE = {"package.json": json.dumps({"dependencies": {"next": "15.0.0"}}), "package-lock.json": "{}"}
+
+
+class AccessControl(unittest.TestCase):
+    """Broken access control is the likeliest way a vibe-coded app hurts its users,
+    and until now nothing here looked at it."""
+
+    def test_no_auth_library_on_a_web_app_is_a_finding(self):
+        r = audit(NEXT_BASE)
+        self.assertEqual(check(r, "auth-1")["status"], "fail")
+
+    def test_an_installed_auth_library_is_found_and_cited(self):
+        r = audit({**NEXT_BASE, "package.json": json.dumps(
+            {"dependencies": {"next": "15.0.0", "@clerk/nextjs": "6.0.0"}})})
+        k = check(r, "auth-1")
+        self.assertEqual(k["status"], "pass")
+        self.assertIn("dependency: @clerk/nextjs", k["evidence"])
+
+    def test_routes_that_never_reference_the_guard_are_flagged(self):
+        r = audit({**NEXT_BASE,
+                   "package.json": json.dumps({"dependencies": {"next": "15.0.0", "@clerk/nextjs": "6.0.0"}}),
+                   "src/app/api/send/route.ts": "export async function POST() { return Response.json({ok:1}); }\n",
+                   "src/app/api/list/route.ts": "export async function GET() { return Response.json([]); }\n"})
+        k = check(r, "auth-2")
+        self.assertEqual(k["status"], "fail")
+        self.assertTrue(any("send" in e for e in k["evidence"]))
+
+    def test_a_route_that_checks_auth_is_not_flagged(self):
+        r = audit({**NEXT_BASE,
+                   "package.json": json.dumps({"dependencies": {"next": "15.0.0", "@clerk/nextjs": "6.0.0"}}),
+                   "src/app/api/send/route.ts":
+                       "import { auth } from '@clerk/nextjs/server';\n"
+                       "export async function POST() { const { userId } = await auth(); "
+                       "if (!userId) return new Response('no', {status:401}); return Response.json({ok:1}); }\n"})
+        self.assertEqual(check(r, "auth-2")["status"], "pass")
+
+    def test_a_guard_that_fails_open_when_its_env_var_is_unset_is_critical(self):
+        """The exact shape found in a real live app: no OWNER_EMAIL set means everyone is the owner."""
+        r = audit({**NEXT_BASE, "src/lib/owner.ts":
+                   "export function isOwner(email: string) {\n"
+                   "  const owner = process.env.OWNER_EMAIL;\n"
+                   "  if (!owner) return true;\n"
+                   "  return email === owner;\n}\n"})
+        k = check(r, "auth-3")
+        self.assertEqual(k["status"], "fail")
+        self.assertEqual(k["severity"], "critical")
+        # A failing check quotes the offending line, so it is evidenced. What it must not
+        # do is claim certainty about intent: this is a pattern, and the wording says so.
+        self.assertTrue(any("owner.ts" in e for e in k["evidence"]))
+        self.assertIn("appears", k["detail"].lower())
+        self.assertIn("open", k["recommendation"].lower() + k["detail"].lower())
+
+    def test_a_guard_that_fails_closed_is_not_flagged(self):
+        r = audit({**NEXT_BASE, "src/lib/owner.ts":
+                   "export function isOwner(email: string) {\n"
+                   "  const owner = process.env.OWNER_EMAIL;\n"
+                   "  if (!owner) return false;\n"
+                   "  return email === owner;\n}\n"})
+        self.assertNotEqual(check(r, "auth-3")["status"], "fail")
+
+    def test_access_control_is_not_applied_to_a_cli(self):
+        r = audit({"tool.py": "print(1)"}, profile="cli")
+        self.assertEqual(check(r, "auth-1")["status"], "n/a")
+
+
+class WarningsCost(unittest.TestCase):
+    """A finding printed with a severity badge must move the number, or the badge is theatre."""
+
+    def test_a_warn_reduces_the_category_score(self):
+        r = audit({**NEXT_BASE, "package.json": json.dumps(
+            {"dependencies": {"next": "15.0.0"}, "scripts": {"test": "vitest"}}),
+            "tests/a.test.ts": "test('x',()=>{})"})
+        for c in r["categories"]:
+            warns = [k for k in c["checks"] if k["status"] == "warn" and k["severity"] != "info"]
+            if warns and c["applicable"]:
+                self.assertLess(c["score"], 100,
+                                f"{c['key']} shows {[w['id'] for w in warns]} as findings but scores 100")
+                return
+        self.skipTest("no warn findings in this fixture")
+
+    def test_a_warn_costs_less_than_the_same_finding_failing(self):
+        self.assertLess(prod_audit.SEVERITY_PENALTY_WARN["medium"], prod_audit.SEVERITY_PENALTY["medium"])
+        self.assertGreater(prod_audit.SEVERITY_PENALTY_WARN["medium"], 0)
+
+
 class CiDetection(unittest.TestCase):
     def test_unittest_step_counts_as_running_tests(self):
         wf = "on: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: python -m unittest discover tests\n"

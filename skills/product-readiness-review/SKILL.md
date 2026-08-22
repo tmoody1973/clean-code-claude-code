@@ -9,13 +9,16 @@ Assess the product as a working system, not merely as a collection of clean file
 
 ## Workflow
 
-1. Infer the product purpose, intended users, primary journeys, stack, and deployment model from repository evidence.
-2. State important unknowns rather than silently assuming them.
-3. Define milestone-specific acceptance checks for the product's primary journeys. For an agent, plugin, or developer tool, include discovery, representative invocation, safety boundaries, and generated artifacts.
-4. Run safe configured tests, builds, analyzers, and repository checks when practical.
-5. Evaluate the relevant dimensions in [references/readiness-rubric.md](references/readiness-rubric.md).
-6. Separate launch blockers, handoff blockers, and later improvements.
-7. Produce an evidence-based report using [references/report-format.md](references/report-format.md).
+1. Ask one question first: which milestone is this for, and what happens if it goes wrong? "Ready for my first ten users" and "ready for a paying customer" are different reviews, and the report format asks you to judge against a milestone you were never told.
+2. If the user has not already run `prod-readiness-coach`, run it now and read its JSON. It covers the repository controls (CI, secrets, rollback, tests) deterministically, so this review can spend its attention on what a script cannot judge: whether the product works for the people using it. Do not re-derive its findings by hand.
+3. Infer the product purpose, intended users, primary journeys, stack, and deployment model from repository evidence.
+4. State important unknowns rather than silently assuming them.
+5. Define milestone-specific acceptance checks for the product's primary journeys. For an agent, plugin, or developer tool, include discovery, representative invocation, safety boundaries, and generated artifacts.
+6. Run configured tests and read-only analyzers. "Safe" means it does not write into the user's repository, does not deploy, and does not touch a live service. A build usually writes artifacts (`.next/`, `dist/`, `*.tsbuildinfo`), so either run it in a copy or skip it and say you skipped it. Never guess at a result you did not run.
+7. Scope honestly. On a large repository you will not read everything. Say what you sampled and what you did not, and pick by risk: the paths that handle money, identity, or someone else's data first.
+8. Evaluate the relevant dimensions in [references/readiness-rubric.md](references/readiness-rubric.md).
+9. Separate launch blockers, handoff blockers, and later improvements.
+10. Report in chat by default; write a file only to a path the user names. Produce an evidence-based report using [references/report-format.md](references/report-format.md).
 
 ## Rules
 

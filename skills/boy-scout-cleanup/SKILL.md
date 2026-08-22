@@ -13,10 +13,13 @@ Before editing:
 
 1. Read repository guidance and inspect the working tree so user changes are preserved.
 2. Identify the file's callers, exports, tests, and configured checks.
-3. Decide what evidence can verify behavior: focused tests, type checks, lint, build, or careful call-site inspection.
-4. If a proposed change could affect behavior and verification is weak, either add a characterization test with the user's approval or leave the change as a recommendation.
+3. Confirm there is an undo. If the project is not under version control and has no backup, say so and stop: a cleanup you cannot reverse is not a cleanup.
+4. Decide what evidence can verify behavior: focused tests, type checks, lint, build, or careful call-site inspection.
+5. **A passing test suite is evidence only if it covers the behavior you are about to touch.** Check that it does. The cheap way: change the value you are about to extract, or invert the condition you are about to simplify, run the suite, and see whether anything fails. If the suite stays green while the behavior is different, it does not cover this code, and green afterwards will mean nothing.
+6. When the suite does not cover it, pick one: propose a characterization test first and get approval, verify by comparing real output before and after (same input, same bytes), or leave the change as a recommendation and say why.
+7. Say which of those you did. "Tests pass" without saying what they cover is the sentence this step exists to prevent.
 
-No edit is literally zero-risk. Unused imports may have side effects, comments may preserve important context, and renames may cross public boundaries. Inspect before removing or renaming.
+"Behavior-preserving" is a claim you are making, not a property the edits have. No edit is literally zero-risk. Unused imports may have side effects, comments may preserve important context, and renames may cross public boundaries. Inspect before removing or renaming.
 
 ## Good cleanup candidates
 
@@ -24,7 +27,7 @@ No edit is literally zero-risk. Unused imports may have side effects, comments m
 - Remove proven unreachable code or a proven-unused import.
 - Reduce nesting while preserving the exact conditions and evaluation order.
 - Extract a domain value whose meaning is otherwise unclear.
-- Use the project's formatter or import organizer.
+- Use the project's formatter or import organizer. If none is configured, leave formatting alone: reflowing code by hand is a repository-wide style rewrite wearing a small diff.
 - Improve a misleading comment or delete one that demonstrably restates the code.
 
 ## Out of scope
