@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from .model import (WAIVER_FILE, WAIVER_MAX_AGE_DAYS, Category, SEVERITY_LABEL, SEVERITY_ORDER,
+from .model import (_one_safe_line, WAIVER_FILE, WAIVER_MAX_AGE_DAYS, Category, SEVERITY_LABEL, SEVERITY_ORDER,
                     find_contradictions)
 from .fingerprint import StackFingerprint
 
@@ -81,6 +81,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
             )
         lines.append("")
 
+    product_context = _one_safe_line(product_context) if product_context else ""
     if product_context:
         lines.append("## Product Context (as provided)")
         lines.append("")
@@ -232,6 +233,11 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
     return "\n".join(lines)
 
 
+# The JSON is read by the skill and by users' CI. Bump this only when a field
+# is removed or changes meaning; adding a field is not a break.
+SCHEMA_VERSION = 1
+
+
 def render_json(categories: list[Category], repo_name: str, fp: Optional[StackFingerprint] = None,
                  product_context: str = "") -> dict:
     return {
@@ -240,7 +246,8 @@ def render_json(categories: list[Category], repo_name: str, fp: Optional[StackFi
         "overall_score": overall_score(categories),
         "grade": grade_for(overall_score(categories), sum(c.blocking_count for c in categories)),
         "stack_fingerprint": asdict(fp) if fp is not None else None,
-        "product_context": product_context or None,
+        "schema_version": SCHEMA_VERSION,
+        "product_context": _one_safe_line(product_context) if product_context else None,
         "waivers": {"applied": getattr(fp, "waivers_applied", []) if fp else [],
                     "problems": getattr(fp, "waiver_problems", []) if fp else []},
         "contradictions": find_contradictions(categories),

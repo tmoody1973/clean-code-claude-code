@@ -35,7 +35,16 @@ from audit.runner import CATEGORY_META, guess_profile, run_audit  # noqa: F401
 from audit.report import grade_for, overall_score, render_json, render_markdown  # noqa: F401
 
 def main():
-    parser = argparse.ArgumentParser(description="Production-readiness audit tool for a project repository.")
+    parser = argparse.ArgumentParser(
+        description="Production-readiness audit tool for a project repository.",
+        epilog=(
+            "Exit codes (these are a contract, wire CI against them):\n"
+            "   0  the audit ran and nothing at or above --fail-on failed\n"
+            "   1  the audit ran and at least one check at or above --fail-on failed\n"
+            "   2  the audit could not run: the path is missing, is a file, or holds no files\n"
+            "\nExit 2 always means nothing was scanned. It is never a verdict about the code."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--repo", required=True, help="Path to the repository to audit.")
     parser.add_argument("--output", default=None, help="Path to write the Markdown report (default: prints to stdout).")
     parser.add_argument("--json", default=None, help="Optional path to also write a JSON report.")

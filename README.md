@@ -168,7 +168,9 @@ Repository layout:
 
 The root `CLAUDE.md` holds contributor instructions for this repository. User-facing behavior lives in the skills, commands, and the installable template. Maintainers follow the [release checklist](docs/release-checklist.md) before tagging.
 
-The audit engine keeps a coverage grid: every check has to prove it fires when a control is missing and stays quiet when the control is there. It sits at 83 of 83 and CI fails if it slips. Run `python3 skills/prod-readiness-coach/scripts/coverage_grid.py` to see it.
+**One of the six tools is a script, and that script is tested.** `prod-readiness-coach` keeps a coverage grid: every check has to prove it fires when a control is missing and stays quiet when the control is there. It sits at 83 of 83 and CI fails if it slips. Run `python3 skills/prod-readiness-coach/scripts/coverage_grid.py` to see it.
+
+**The other five are prompts, and prompts have no automated tests here.** `clean-code-review`, `boy-scout-cleanup`, `clean-code-scaffold`, `developer-handoff` and `product-readiness-review` are instructions Claude follows, not code that runs the same way twice. Each was tested once by hand against a real repository. That is weaker evidence and you should treat it as weaker. The 83 of 83 is a number about the script, not about the toolkit.
 
 Design principles, in one line each: product intent first; read before editing; evidence over confidence; the framework's conventions beat generic advice; line counts are prompts to look, not failures; small focused diffs; unknowns stay unknown. [How It Works](docs/how-it-works.md) describes each tool's boundaries. [Start Here for Vibe Coders](docs/start-here-vibe-coders.md) is the longer plain-English guide.
 
