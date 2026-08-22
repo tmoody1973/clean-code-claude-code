@@ -533,5 +533,184 @@ class CiDetection(unittest.TestCase):
         self.assertEqual(check(r, "ci-2")["status"], "pass")
 
 
+# --------------------------------------------------------------------------
+# Every check has to prove two things: that it fires when it should, and that
+# it stays quiet when it should not. Only the first half was ever tested, which
+# is how auth-2 shipped wrong about half the time it spoke. Borrowed from KICS,
+# which refuses a rule that has no negative fixture.
+# --------------------------------------------------------------------------
+
+ROUTE = "src/app/api/thing/route.ts"
+
+
+class Auth2StaysQuiet(unittest.TestCase):
+    """auth-2 must not call an authenticated route unguarded."""
+
+    BASE = {"package.json": json.dumps({"dependencies": {"@clerk/nextjs": "6.0.0", "next": "15.0.0"}}),
+            "tsconfig.json": "{}"}
+
+    def test_fires_on_a_genuinely_unguarded_route(self):
+        r = audit({**self.BASE, ROUTE: "export async function GET() { return Response.json({ok:1}) }"})
+        k = check(r, "auth-2")
+        self.assertEqual(k["status"], "fail")
+        self.assertEqual(k["severity"], "high")
+
+    def test_quiet_when_middleware_guards_requests_first(self):
+        mw = ('import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";\n'
+              'const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)"]);\n'
+              'export default clerkMiddleware(async (auth, req) => {\n'
+              '  if (!isPublicRoute(req)) await auth.protect();\n});\n')
+        r = audit({**self.BASE, ROUTE: "export async function GET() { return Response.json({ok:1}) }",
+                   "src/middleware.ts": mw})
+        k = check(r, "auth-2")
+        self.assertEqual(k["status"], "warn", k["detail"])
+        self.assertEqual(k["severity"], "low")
+        self.assertTrue(any("middleware" in e for e in k["evidence"]))
+        self.assertTrue(any("public pattern: /sign-in(.*)" in e for e in k["evidence"]),
+                        k["evidence"])
+
+    def test_quiet_on_a_signature_verified_webhook(self):
+        route = ('import { Webhook } from "svix";\n'
+                 '// Called by a machine. It cannot carry a browser session.\n'
+                 'export async function POST(req) {\n'
+                 '  const wh = new Webhook(process.env.SVIX_SECRET);\n'
+                 '  wh.verify(await req.text(), headers);\n  return Response.json({ok:1});\n}\n')
+        r = audit({**self.BASE, "src/app/api/inbound/route.ts": route})
+        k = check(r, "auth-2")
+        self.assertEqual(k["status"], "pass", k["detail"])
+
+    def test_quiet_on_a_shared_secret_route(self):
+        route = ('export async function POST(req) {\n'
+                 '  const secret = process.env.TOOL_SECRET;\n'
+                 '  if (req.headers.get("x-secret") !== secret) return new Response("no", {status:401});\n'
+                 '  return Response.json({ok:1});\n}\n')
+        r = audit({**self.BASE, ROUTE: route})
+        self.assertEqual(check(r, "auth-2")["status"], "pass")
+
+    def test_auth_3_still_catches_the_fail_open_guard(self):
+        owner = ('const owner = process.env.OWNER_EMAIL;\n'
+                 'export function isOwner(email) {\n  if (!owner) return true;\n'
+                 '  return email === owner;\n}\n')
+        r = audit({**self.BASE, ROUTE: "export async function GET() {}", "src/lib/owner.ts": owner})
+        k = check(r, "auth-3")
+        self.assertEqual(k["status"], "fail")
+        self.assertEqual(k["severity"], "critical")
+
+
+class GoRepoIsNotLiedTo(unittest.TestCase):
+    """Go is not a supported stack. It must still never be told something false."""
+
+    FILES = {
+        "go.mod": "module example.com/svc\n\ngo 1.23\n",
+        "go.sum": "",
+        "main.go": ('package main\n\nimport (\n\t"net/http"\n\t"github.com/go-chi/chi/v5"\n)\n\n'
+                    'func main() {\n\tr := chi.NewRouter()\n'
+                    '\tr.Get("/health", func(w http.ResponseWriter, _ *http.Request) {\n'
+                    '\t\tw.WriteHeader(http.StatusOK)\n\t})\n'
+                    '\thttp.ListenAndServe(":8080", r)\n}\n'),
+        "main_test.go": 'package main\n\nimport "testing"\n\nfunc TestHealth(t *testing.T) {}\n',
+        ".github/workflows/ci.yml": (
+            "on:\n  pull_request:\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      - run: go vet ./...\n      - run: golangci-lint run\n      - run: go test ./...\n"),
+        "CLAUDE.md": "Build with go build. Test with go test ./... . Lint with golangci-lint run. "
+                     "The service listens on 8080 and exposes /health for the load balancer to poll "
+                     "before it sends traffic to a new instance.",
+        ".env.example": "DATABASE_URL=\n",
+        ".gitignore": ".env\n",
+    }
+
+    def test_no_javascript_is_claimed(self):
+        r = audit(self.FILES)
+        self.assertEqual(r["stack_fingerprint"]["languages"], ["go"])
+
+    def test_ci_6_never_says_package_json_exists(self):
+        k = check(audit(self.FILES), "ci-6")
+        self.assertNotIn("package.json exists", k["detail"])
+        self.assertEqual(k["status"], "warn")
+
+    def test_go_lint_steps_are_recognised(self):
+        self.assertEqual(check(audit(self.FILES), "ci-3")["status"], "pass")
+
+    def test_runtime_checks_report_n_a_rather_than_guessing(self):
+        """No Go framework is recognised, so the profile is unknown. Silence, not a fail."""
+        self.assertEqual(check(audit(self.FILES), "log-3")["status"], "n/a")
+
+    def test_code_declared_health_route_is_found_when_the_profile_is_known(self):
+        k = check(audit(self.FILES, profile="api"), "log-3")
+        self.assertEqual(k["status"], "pass", k["detail"])
+        self.assertEqual(k["confidence"], "weak")
+
+
+class PythonServiceRepo(unittest.TestCase):
+    """A well-built FastAPI service. Python is a supported stack, so it must score like one."""
+
+    FILES = {
+        "pyproject.toml": (
+            '[project]\nname = "svc"\ndependencies = [\n  "fastapi",\n  "fastapi-users",\n'
+            '  "structlog",\n  "sentry-sdk",\n  "alembic",\n]\n\n'
+            '[dependency-groups]\ndev = ["pytest", "pytest-cov", "mypy"]\n\n'
+            '[tool.pytest.ini_options]\naddopts = "--cov=app"\n'),
+        "app/main.py": (
+            'from fastapi import FastAPI\nimport structlog\nimport sentry_sdk\n\n'
+            'sentry_sdk.init(dsn=os.environ["SENTRY_DSN"])\nlog = structlog.get_logger()\n'
+            'app = FastAPI()\n\n\n@app.get("/health")\nasync def health():\n'
+            '    return {"status": "ok"}\n'),
+        "app/api/routes.py": (
+            'from fastapi import APIRouter, Depends\nfrom app.users import current_active_user\n\n'
+            'router = APIRouter(dependencies=[Depends(current_active_user)])\n\n\n'
+            '@router.get("/items")\nasync def items():\n    return []\n'),
+        "tests/test_health.py": 'def test_health(client):\n    assert client.get("/health").status_code == 200\n',
+        ".github/workflows/ci.yml": (
+            "on:\n  pull_request:\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      - run: mypy app\n      - run: pytest --cov=app\n"),
+        "CLAUDE.md": "FastAPI service. Run with uvicorn app.main:app. Test with pytest. Typecheck "
+                     "with mypy app. Migrations are alembic. Auth is fastapi-users with cookie "
+                     "sessions; every router under app/api requires an active user.",
+        ".env.example": "DATABASE_URL=\nSENTRY_DSN=\n",
+        ".gitignore": ".env\n.venv\n",
+        "docs/runbook.md": (
+            "# Runbook\n\nTo roll back, run alembic downgrade -1 and redeploy the previous image "
+            "tag from the registry. The health endpoint is /health and the load balancer polls it "
+            "every ten seconds. If the database is unreachable the service returns 503 and the "
+            "balancer drains it automatically. Page the on-call engineer listed in the team "
+            "directory when error rate passes two percent for five minutes running.\n"),
+    }
+
+    def test_language_is_python_only(self):
+        self.assertEqual(audit(self.FILES)["stack_fingerprint"]["languages"], ["python"])
+
+    def test_mypy_counts_as_a_typecheck_step(self):
+        self.assertEqual(check(audit(self.FILES), "ci-3")["status"], "pass")
+
+    def test_pytest_config_is_a_test_entry_point(self):
+        self.assertEqual(check(audit(self.FILES), "ci-6")["status"], "pass")
+
+    def test_fastapi_users_counts_as_an_auth_mechanism(self):
+        self.assertEqual(check(audit(self.FILES), "auth-1")["status"], "pass")
+
+    def test_decorator_health_route_is_found(self):
+        self.assertEqual(check(audit(self.FILES), "log-3")["status"], "pass")
+
+    def test_no_check_claims_a_package_json(self):
+        r = audit(self.FILES)
+        for c in r["categories"]:
+            for k in c["checks"]:
+                self.assertNotIn("package.json exists", k["detail"], k["id"])
+
+
+class NoManifestMeansNoManifest(unittest.TestCase):
+    def test_package_json_is_empty_without_a_manifest(self):
+        root = make_repo({"go.mod": "module x\ngo 1.23\n"})
+        self.assertEqual(prod_audit.Repo(root).package_json(), {})
+
+    def test_package_json_still_merges_workspace_members(self):
+        root = make_repo({
+            "package.json": json.dumps({"workspaces": ["apps/*"]}),
+            "apps/web/package.json": json.dumps({"dependencies": {"next": "15.0.0"}}),
+        })
+        pkg = prod_audit.Repo(root).package_json()
+        self.assertIn("next", pkg["dependencies"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -128,7 +128,17 @@ def check_ci_pipeline(repo: Repo) -> list[CheckResult]:
             best_practice_ref=ref,
         ))
 
-    lint_patterns = [r"\blint\b", r"eslint", r"ruff", r"flake8", r"pylint", r"tsc\b", r"typecheck"]
+    # A lint step is a lint step in any language. The first version of this list
+    # only knew the Node and Python names, so a CI running `mypy app` was told it
+    # had no typecheck step at all.
+    lint_patterns = [
+        r"\blint\b", r"typecheck", r"\btsc\b",
+        r"eslint", r"biome\s+(?:check|lint)", r"oxlint", r"prettier\s+--check",
+        r"\bruff\b", r"flake8", r"pylint", r"\bmypy\b", r"pyright", r"\bblack\s+--check",
+        r"golangci-lint", r"\bgo\s+vet\b", r"\bgofmt\b", r"staticcheck",
+        r"rubocop", r"\bclippy\b", r"cargo\s+fmt", r"dotnet\s+format",
+        r"ktlint", r"detekt", r"checkstyle", r"\bphpstan\b", r"psalm",
+    ]
     has_lint_step = any(re.search(p, combined, re.IGNORECASE) for p in lint_patterns)
     results.append(CheckResult(
         "ci-3", "CI/CD Pipeline", "Pipeline runs lint / typecheck",
@@ -217,8 +227,12 @@ def check_test_scripts_defined(repo: Repo) -> CheckResult:
     return CheckResult(
         "ci-6", "CI/CD Pipeline", "Test command defined in project manifest",
         "warn", "medium",
-        "Could not determine project manifest / test entry point.",
-        "Ensure the project has a documented, single-command way to run tests.",
+        "No test entry point was found. This check reads a `test` script in package.json "
+        "or a pytest configuration; it has no rules for other ecosystems, so a Go, Rust or "
+        "Ruby project will land here even when its test command is fine.",
+        "Ensure the project has a documented, single-command way to run tests, and check "
+        "the CI findings above, which do look at every ecosystem.",
+        evidence=["scope: checked package.json scripts.test and pytest configuration"],
         best_practice_ref=ref,
     )
 

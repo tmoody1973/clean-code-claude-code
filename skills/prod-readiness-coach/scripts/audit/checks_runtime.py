@@ -29,10 +29,7 @@ def check_structured_logging(repo: Repo) -> list[CheckResult]:
     pkg = repo.package_json()
     dep_names = {n.lower() for n in ((pkg.get("dependencies", {}) | pkg.get("devDependencies", {})).keys()
                                      if pkg else [])}
-    # Python requirements: one package per line, strip version specifiers.
-    dep_names |= {re.split(r"[=<>!~\[; ]", line.strip(), 1)[0].lower()
-                  for line in repo.requirements_text().splitlines() if line.strip()
-                  and not line.lstrip().startswith("#")}
+    dep_names |= repo.requirement_names()
     # A dependency named @types/pino is a type stub, not a logger. Match the package
     # name (allowing a scope prefix), never a substring of a serialized blob.
     def _installed(lib: str) -> bool:
@@ -92,11 +89,25 @@ def check_structured_logging(repo: Repo) -> list[CheckResult]:
         "*/api/health/*", "*/api/health.*", "*/healthz*", "*/health.*",
         "app/api/health/route.*", "pages/api/health.*",
     ])
+    # Only Next.js puts a route in the file path. Every other framework declares
+    # it in code: @app.get("/health"), r.Get("/health", ...), get "/health".
+    health_decls = repo.grep(r"""["'`]/(?:health|healthz|livez|readyz|_health)["'`/]""")
     if health_paths:
         results.append(CheckResult(
             "log-3", "Structured Logging & Observability", "Health-check endpoint exposed",
             "pass", "info",
             f"Health-check endpoint found: {', '.join(health_paths)}.",
+            evidence=health_paths[:5],
+            best_practice_ref=ref,
+        ))
+    elif health_decls:
+        results.append(CheckResult(
+            "log-3", "Structured Logging & Observability", "Health-check endpoint exposed",
+            "pass", "info",
+            f"A health route is declared in code ({len(health_decls)} reference(s)). This is a "
+            "text match on the path, not proof the route responds, so call it once to be sure.",
+            evidence=[f"{f}: {line[:80]}" for f, line in health_decls[:5]],
+            confidence="weak",
             best_practice_ref=ref,
         ))
     else:

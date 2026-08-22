@@ -1,6 +1,6 @@
 ---
 name: product-readiness-review
-description: "Perform a read-only, evidence-based assessment of whether an AI-assisted or early-stage product is ready for users, production, technical due diligence, or developer handoff. Use when the user asks whether a product is production-ready, wants a product audit, wants to improve more than code style, or asks what must be fixed before launch or handoff. Use for user journeys and product behavior. For broad production-readiness requests, run prod-readiness-coach first for the repository-controls scan, then this review for product judgment."
+description: "Judges user journeys and product behavior, not repository controls: whether a real person can finish the core flows, what happens when they do the wrong thing, and whether the product is ready for users, production, technical due diligence, or developer handoff. A read-only, evidence-based assessment that reads code and docs and reasons about the product as a working system. Use when the user asks whether a product is production-ready, wants a product audit, wants to improve more than code style, or asks what must be fixed before launch or handoff. For broad production-readiness requests, run prod-readiness-coach first for the repository-controls scan, then this review for product judgment."
 ---
 
 # Product Readiness Review

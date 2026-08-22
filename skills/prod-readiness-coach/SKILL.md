@@ -1,6 +1,6 @@
 ---
 name: prod-readiness-coach
-description: "Audits any code repository for production-readiness gaps (CI/CD pipeline, structured logging, error tracking, secrets management, CLAUDE.md/AGENTS.md, resilience/runbooks, multi-surface deployment and coordinated rollback risk, irreversible migrations, test coverage, dependency security) and produces two plain-English documents: a beginner-friendly audit explainer and a phase-gated Claude Code fix brief. Detects the repo's stack (frameworks, deploy platforms, runtimes) and loads matching stack-specific reference material so advice reflects real platform gotchas instead of generic checklist language. Use when a user asks to audit, check, or review a repo for production readiness, best practices, or launch-blockers, or asks to turn code-quality/DevOps findings into something a non-expert or self-taught (\"vibe coder\") developer can understand and act on. Use for repository controls and static scanning; run it first on broad production-readiness requests. Do not use alone to judge user journeys or product correctness; that is product-readiness-review."
+description: "Scans repository controls and scripts, not user journeys: access control on request handlers, CI/CD pipeline, structured logging, error tracking, secrets management, CLAUDE.md/AGENTS.md, resilience and runbooks, multi-surface deployment and coordinated rollback risk, irreversible migrations, test coverage, and dependency security. Runs a deterministic script, then produces two plain-English documents: a beginner-friendly audit explainer and a phase-gated Claude Code fix brief. Detects the repo's stack (frameworks, deploy platforms, runtimes) and loads matching stack-specific reference material so advice reflects real platform gotchas instead of generic checklist language. Repository-level checks run on any language; stack-specific checks are strongest on Node and Next.js, good on Python, and report what they could not check elsewhere. Use when a user asks to audit, check, or review a repo for production readiness, best practices, or launch-blockers, or asks to turn code-quality/DevOps findings into something a non-expert or self-taught (\"vibe coder\") developer can understand and act on. Run it first on broad production-readiness requests. Do not use it alone to judge user journeys or product correctness; that is product-readiness-review."
 ---
 
 # Production Readiness Coach
@@ -348,9 +348,32 @@ with no documented reverse procedure), that last check runs for every
 repo regardless of surface count, since a single-surface app can still
 lose data permanently to a migration that a code rollback can't undo.
 
-It works on any git repo regardless of language/framework, repos with no
-recognized deploy platform still get a clean fingerprint (empty surfaces,
-`multi_surface: false`) rather than a crash. See its own `--help` output
+Language coverage is not even, and the report has to say so. Checks that
+read the repository itself work on anything: is there CI, does it run on
+pull requests, is `.env` ignored, is there a runbook with real words in it,
+are there secrets in the code, is there a CLAUDE.md. Checks that need to
+know the stack are narrower. They are strongest on Node and Next.js, good
+on Python, and have no rules for Go, Rust, Ruby, Java, PHP or C#.
+
+On a language with no rules, this is what that looks like:
+
+- `ci-6` (a test command in the manifest) reads a `test` script in
+  package.json and a pytest configuration, nothing else. On a Go or Rust
+  repo it reports "no test entry point found" and names the two things it
+  read, so the reader can see the gap is in the tool.
+- `auth-1` looks for an authentication package in package.json,
+  requirements.txt or pyproject.toml. A Go or Ruby auth library is invisible
+  to it.
+- `auth-2` finds request handlers by Next.js, Express and FastAPI path
+  shapes. A chi router or a Rails controller is never scanned.
+- When no framework is recognized, the profile is "unknown" and every
+  runtime check reports n/a with "insufficient evidence" rather than
+  failing. Pass `--profile api` to run them anyway.
+
+It never crashes on an unfamiliar repo, and it never invents a finding
+about a file that is not there. Repos with no recognized deploy platform
+still get a clean fingerprint (empty surfaces, `multi_surface: false`).
+What it did not check, it says it did not check. See its own `--help` output
 for CLI flags; the ones that matter here are `--json` (for this skill's
 translation step), `--context` (for the product-context calibration in
 step 1, stored verbatim, never alters the score), and `--fail-on
