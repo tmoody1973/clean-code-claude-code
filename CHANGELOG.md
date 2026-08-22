@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.6.0
+
+Three review rounds in a row each found new defects, and the question was asked plainly: is there an end to this. There was no way to answer, because nobody could say how much had been checked. This release makes that a number.
+
+**The coverage grid.** Every check must now have a fixture that makes it fire and a fixture that makes it stay quiet. Checks a profile can skip must also have a fixture that skips them. That is 83 cells across 34 checks, and it stands at 83 of 83. `scripts/coverage_grid.py` prints it, and CI fails if it drops below 100 percent. The grid is computed by running the audit over the fixtures, so it cannot drift from the code: add a check with no fixture and the build fails with that check's id in the message.
+
+Before this, all 68 tests asked only whether a check fires. None asked whether it stays quiet. That is the exact hole `auth-2` fell through, wrong about half the time it spoke, for three releases, with a green suite the whole way.
+
+**Two false negatives the grid found in its first hour, both invisible to three rounds of human review.**
+- **Sentry installed as `@sentry/nextjs` did not count as error tracking.** The dependency matcher knew `sentry` and `@sentry` but not the scope prefix, so a Next.js app with Sentry correctly wired up was told at CRITICAL that it had no error tracking at all. That is the most common error-tracker and framework pairing this tool audits. `@vercel/otel`, `@sentry/node` and every other scoped package were equally invisible. Type stubs like `@types/pino` still correctly do not count.
+- **A plain `migrations/` folder was never read for destructive SQL.** The irreversible-migration check knew Prisma, Drizzle, Alembic and Rails, and nothing else. A `DROP TABLE` in the folder that dbmate, golang-migrate, node-pg-migrate, sqlx and Supabase all use went unreported.
+
+**Five invariants, each with a test.** Each closes a whole class of defect so it cannot come back one instance at a time: never report about a file that is not there; never claim a control exists from a text match without saying the evidence is weak; never grade what it did not scan; never ship text its own linter rejects; every check has a firing case and a quiet case. Two more properties are now enforced across every fixture: a failing check always carries a recommendation, and no finding text uses an em or en dash.
+
+**The stop rule.** The engine is done when the grid is full, the invariants have tests, and CI is green. After that a review hunts for a new class of defect, not a new instance of an old one, and a review that finds nothing counts as a pass. See `docs/decisions/009`.
+
+Tests: 114.
+
 ## 3.5.2
 
 A developer-experience audit of the toolkit itself: install it fresh, run the CLI, break it on purpose, read every doc link. Four things it found.

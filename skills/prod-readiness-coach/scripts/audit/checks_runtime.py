@@ -33,9 +33,25 @@ def check_structured_logging(repo: Repo) -> list[CheckResult]:
     # A dependency named @types/pino is a type stub, not a logger. Match the package
     # name (allowing a scope prefix), never a substring of a serialized blob.
     def _installed(lib: str) -> bool:
+        """True when a dependency is this library, under any packaging style.
+
+        Sentry ships as `@sentry/nextjs`, not `sentry`, and the scope prefix was
+        matched by nothing here: a Next.js app with Sentry correctly installed was
+        told at CRITICAL that it had no error tracking at all. That is the most
+        common error-tracker and framework pairing this tool audits.
+        """
         lib = lib.lower()
-        return any(n == lib or (n.endswith(f"/{lib}") and not n.startswith("@types/"))
-                   for n in dep_names)
+        # A type stub is a description of a library, not the library.
+        real = [n for n in dep_names if not n.startswith("@types/")]
+        return any(
+            n == lib
+            # `@foo/pino` is pino.
+            or n.endswith(f"/{lib}")
+            # `@sentry` is `@sentry/nextjs`, `@sentry/node`, `@sentry/react`.
+            or (lib.startswith("@") and n.startswith(f"{lib}/"))
+            # `sentry` is also `@sentry/nextjs`; `otel` is also `@vercel/otel`.
+            or (n.startswith("@") and "/" in n and n.split("/", 1)[1] == lib)
+            for n in real)
 
     matched_logging_libs = [lib for lib in LOGGING_LIBS if _installed(lib)]
     if matched_logging_libs:
@@ -498,6 +514,12 @@ def check_multi_surface_deployment(repo: Repo, fp: StackFingerprint) -> list[Che
         "drizzle/*.sql", "**/drizzle/*.sql", "drizzle/**/*.sql", "**/drizzle/**/*.sql",
         "alembic/versions/*.py", "**/alembic/versions/*.py",
         "db/migrate/*.rb", "**/db/migrate/*.rb",
+        # A plain migrations folder is what dbmate, golang-migrate, node-pg-migrate,
+        # sqlx, Supabase and hand-rolled setups all use. Knowing only the four ORMs
+        # above meant a `DROP TABLE` in `migrations/` was never read.
+        "migrations/*.sql", "**/migrations/*.sql", "migrations/**/*.sql",
+        "**/migrations/**/*.sql", "db/migrations/*.sql", "supabase/migrations/*.sql",
+        "migrations/*.js", "migrations/*.ts", "**/migrations/*.js", "**/migrations/*.ts",
     ])
     destructive_hits = []
     for f in migration_paths:
