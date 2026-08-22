@@ -114,6 +114,35 @@ CONTRADICTIONS = [
 ]
 
 
+# A control that exists in name only is a costume. `docs/runbook.md` can be an
+# empty file; a CI step can be `echo "test skipped"`; a README "rollback" can be
+# an unchecked TODO. Existence is not function, so these checks look at content.
+TEST_RUNNER_RX = re.compile(
+    r"\b(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?test\b|\bnpx?\s+(?:vitest|jest|mocha|ava|playwright|cypress)\b"
+    r"|\b(?:vitest|jest|mocha|ava|karma)\b|\bpytest\b|\bpython\s+-m\s+(?:pytest|unittest)\b"
+    r"|\bgo\s+test\b|\bcargo\s+test\b|\brspec\b|\bphpunit\b|\bdotnet\s+test\b|\bmvn\s+test\b"
+    r"|\bgradle(?:w)?\s+test\b|\bnode\s+--test\b|\brake\s+test\b",
+    re.IGNORECASE,
+)
+# An unchecked task box, or a promise to do it later, is not a procedure.
+TODO_LINE_RX = re.compile(r"^\s*[-*]?\s*\[\s\]|\b(?:todo|tbd|coming soon|someday|we should|should probably)\b",
+                          re.IGNORECASE)
+MIN_DOC_WORDS = 50
+
+
+def runs_a_test_suite(text: str) -> bool:
+    """True when text invokes a real test runner, not merely the word 'test'.
+    Shell strings are stripped first so `echo "test skipped"` does not count."""
+    without_strings = re.sub(r"""(['"]).*?\1""", " ", text or "", flags=re.S)
+    return bool(TEST_RUNNER_RX.search(without_strings))
+
+
+def has_substance(text: str, min_words: int = MIN_DOC_WORDS) -> bool:
+    """A document with almost no prose is a placeholder, not documentation."""
+    body = "\n".join(l for l in (text or "").splitlines() if not l.lstrip().startswith("#"))
+    return len(body.split()) >= min_words
+
+
 def load_waivers(repo: "Repo") -> tuple[dict, list[str]]:
     """Return ({check_id: waiver}, [problems]). A bad waiver is reported, never silently ignored."""
     raw = repo.read(WAIVER_FILE)
@@ -676,15 +705,12 @@ def check_ci_pipeline(repo: Repo) -> list[CheckResult]:
         best_practice_ref=ref,
     ))
 
-    test_patterns = [r"\btest\b", r"\bunittest\b", r"\bvitest\b", r"\bjest\b", r"\bpytest\b",
-                      r"\bgo\s+test\b", r"npm\s+(run\s+)?test", r"pnpm\s+test",
-                      r"yarn\s+test", r"rspec\b", r"phpunit\b"]
-    has_test_step = any(re.search(p, combined, re.IGNORECASE) for p in test_patterns)
+    has_test_step = runs_a_test_suite(combined)
     if has_test_step:
         results.append(CheckResult(
             "ci-2", "CI/CD Pipeline", "Pipeline runs automated tests",
             "pass", "info",
-            "CI configuration references a test command.",
+            "CI runs a real test runner, not just a step with the word test in it.",
             evidence=workflow_files,
             best_practice_ref=ref,
         ))
@@ -692,7 +718,8 @@ def check_ci_pipeline(repo: Repo) -> list[CheckResult]:
         results.append(CheckResult(
             "ci-2", "CI/CD Pipeline", "Pipeline runs automated tests",
             "fail", "critical",
-            "CI configuration exists but no step appears to run the test suite.",
+            "CI configuration exists but no step invokes a test runner. A step that only "
+            "prints the word test does not count.",
             "Add an explicit test step (e.g. `run: npm test` / `pytest`) to the "
             "workflow so regressions are caught before merge, not in production.",
             evidence=workflow_files,
@@ -746,11 +773,24 @@ def check_test_scripts_defined(repo: Repo) -> CheckResult:
     ref = "https://12factor.net/"
     pkg = repo.package_json()
     scripts = pkg.get("scripts", {}) if pkg else {}
-    if any(k in scripts for k in ("test",)):
+    if "test" in scripts:
+        cmd = str(scripts.get("test", ""))
+        if runs_a_test_suite(cmd):
+            return CheckResult(
+                "ci-6", "CI/CD Pipeline", "Test command defined in project manifest",
+                "pass", "info",
+                f"package.json defines a `test` script that runs a test runner: `{cmd}`.",
+                evidence=[f"package.json scripts.test: {cmd}"],
+                best_practice_ref=ref,
+            )
         return CheckResult(
             "ci-6", "CI/CD Pipeline", "Test command defined in project manifest",
-            "pass", "info",
-            f"package.json defines a `test` script: `{scripts.get('test')}`.",
+            "fail", "high",
+            f"package.json has a `test` script, but it does not run a test runner: `{cmd}`. "
+            "A script that only prints a message and exits 0 makes CI green while testing nothing.",
+            "Point the `test` script at a real runner (vitest, jest, pytest, `node --test`), "
+            "so a green pipeline means the suite actually ran.",
+            evidence=[f"package.json scripts.test: {cmd}"],
             best_practice_ref=ref,
         )
     req = repo.requirements_text()
@@ -760,6 +800,7 @@ def check_test_scripts_defined(repo: Repo) -> CheckResult:
             "ci-6", "CI/CD Pipeline", "Test command defined in project manifest",
             "pass", "info",
             "pytest configuration detected in project manifest.",
+            evidence=[repo.find_any(["pytest.ini", "setup.cfg", "pyproject.toml"])[0]],
             best_practice_ref=ref,
         )
     if pkg:
@@ -1040,11 +1081,23 @@ def check_resilience_and_runbooks(repo: Repo) -> list[CheckResult]:
         "*DISASTER_RECOVERY*", "*disaster-recovery*", "*INCIDENT*",
         "docs/**/incident*", "docs/**/on-call*", "*ONCALL*",
     ])
-    if runbook_files:
+    with_content = [f for f in runbook_files if has_substance(repo.read(f))]
+    if with_content:
         results.append(CheckResult(
             "res-1", "Resilience & Failover", "Runbook / incident-response docs present",
             "pass", "info",
-            f"Found operational doc(s): {', '.join(runbook_files[:5])}.",
+            f"Found operational doc(s) with real content: {', '.join(with_content[:5])}.",
+            evidence=with_content,
+            best_practice_ref=ref,
+        ))
+    elif runbook_files:
+        results.append(CheckResult(
+            "res-1", "Resilience & Failover", "Runbook / incident-response docs present",
+            "fail", "high",
+            f"Found {', '.join(runbook_files[:5])}, but it is empty or under "
+            f"{MIN_DOC_WORDS} words. A placeholder is not a runbook.",
+            "Fill it in: how you notice the failure, how you re-run or roll back, "
+            "and how you turn it off if it keeps failing.",
             evidence=runbook_files,
             best_practice_ref=ref,
         ))
@@ -1061,7 +1114,10 @@ def check_resilience_and_runbooks(repo: Repo) -> list[CheckResult]:
         ))
 
     readme = repo.read("README.md")
-    mentions_rollback = bool(re.search(r"rollback|roll back|revert deploy|backup and restore", readme, re.IGNORECASE))
+    rollback_lines = [l.strip() for l in readme.splitlines()
+                      if re.search(r"rollback|roll back|revert deploy|backup and restore", l, re.IGNORECASE)
+                      and not TODO_LINE_RX.search(l)]
+    mentions_rollback = bool(rollback_lines)
     results.append(CheckResult(
         "res-2", "Resilience & Failover", "Rollback/backup procedure documented",
         "pass" if mentions_rollback else "warn",
@@ -1070,6 +1126,7 @@ def check_resilience_and_runbooks(repo: Repo) -> list[CheckResult]:
         "No rollback or backup procedure documented in README.",
         "" if mentions_rollback else "Document how to roll back a bad deploy and "
         "how database backups/restores work, including RTO/RPO expectations.",
+        evidence=rollback_lines[:3],
         best_practice_ref=ref,
     ))
 
@@ -1338,6 +1395,7 @@ def check_dependency_security(repo: Repo) -> list[CheckResult]:
         "" if lockfile else "Commit a lockfile so builds are reproducible across "
         "environments — without one, production can silently pull different "
         "dependency versions than what was tested.",
+        evidence=[lockfile] if lockfile else [],
         best_practice_ref=ref,
     ))
 
@@ -1457,6 +1515,12 @@ def run_audit(repo_path: Path, profile: Optional[str] = None) -> tuple[list[Cate
     for cat in categories.values():
         for c in cat.checks:
             if c.id in WEAK_PASS_IDS and c.status == "pass":
+                c.confidence = "weak"
+            # Confidence follows evidence. A pass that points at nothing cannot be
+            # verified by the reader, so it is a hint no matter which check made it.
+            # This catches new checks automatically; WEAK_PASS_IDS never has to be
+            # remembered again.
+            if c.status == "pass" and not c.evidence:
                 c.confidence = "weak"
             w = waivers.get(c.id)
             if w and c.status == "fail":
