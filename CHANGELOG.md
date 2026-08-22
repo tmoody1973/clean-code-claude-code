@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.5.2
+
+A developer-experience audit of the toolkit itself: install it fresh, run the CLI, break it on purpose, read every doc link. Four things it found.
+
+**An empty folder used to get a grade.** Pointed at a directory with nothing in it, the tool reported "Repository Controls Score: 65/100, D, release blockers present" with four CRITICAL findings, and never said the folder was empty. A mistyped path produced a confident report about nothing, which is the same failure 3.5.1 shipped three fixes for. It now refuses: it says what is wrong, says to pass `--repo .` instead, and exits 2. **This is a behavior change.** A pipeline pointed at a path with no files used to exit 0 and now exits 2. See `docs/decisions/008`.
+
+**A folder that is not a git repository now says so, at the top of the report.** The scan still runs, because there are real files and the findings mean something, but `git ls-files` is unavailable, so `.gitignore` is not applied and `node_modules` or build output can be read as source. That caveat now appears above the score instead of nowhere.
+
+**The toolkit shipped ten files its own linter rejects.** `check_report.py` refuses em and en dashes in generated documents. Eight shipped files contained em dashes, including `plain-english-glossary.md`, the file that defines the plain-English house style, and all five stack reference files. Two contained en dashes. The 3.5.0 entry claiming em dashes were "gone from every skill, command and template" was true of those three directories and never covered `references/`. All ten are fixed, and `validate-toolkit.sh` now enforces the rule, so it cannot come back. The rule was previously enforced only on documents the tool generated, never on the documents it ships.
+
+**`add-clean-code.sh --help` was a dead end.** It printed "Unknown option: --help" and exited 64. The usage text already existed as a comment at the top of the same file and was never printed. `--help` and `-h` now print it and exit 0, and an unknown flag prints it too.
+
+Tests: 92.
+
 ## 3.5.1
 
 Five defects, and one thing underneath all of them: the engine only really knew Node. Two of these were saying something false about any repository a user ran them on today.

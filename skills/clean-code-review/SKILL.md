@@ -53,5 +53,5 @@ Report in chat by default. Write a file only if the user asks, and then to a pat
 
 - For a product-level assessment, use `product-readiness-review`.
 - For a developer-ready handoff document, use `developer-handoff`.
-- For 3–5 local, behavior-preserving improvements, use `boy-scout-cleanup`.
+- For 3 to 5 local, behavior-preserving improvements, use `boy-scout-cleanup`.
 - For structural edits, use `/refactor` and verify behavior before and after.

@@ -712,5 +712,59 @@ class NoManifestMeansNoManifest(unittest.TestCase):
         self.assertIn("next", pkg["dependencies"])
 
 
+class RefusesToGradeNothing(unittest.TestCase):
+    """Grading an empty folder is the same lie as grading a file that is not there."""
+
+    SCRIPT = str(Path(__file__).resolve().parent.parent / "scripts" / "prod_audit.py")
+
+    def run_cli(self, root: Path, *extra):
+        return subprocess.run([sys.executable, self.SCRIPT, "--repo", str(root),
+                               "--output", "/dev/null", *extra],
+                              capture_output=True, text=True)
+
+    def test_an_empty_directory_is_refused_not_graded(self):
+        out = self.run_cli(make_repo({}))
+        self.assertNotEqual(out.returncode, 0)
+        self.assertIn("no files", (out.stderr + out.stdout).lower())
+        self.assertNotIn("Score:", out.stdout)
+
+    def test_the_refusal_says_what_to_do_next(self):
+        out = self.run_cli(make_repo({}))
+        self.assertIn("--repo", out.stderr)
+
+    def test_a_missing_path_says_what_to_do_next(self):
+        out = self.run_cli(Path("/tmp/prod-audit-no-such-path-xyz"))
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("--repo", out.stderr)
+
+    def test_a_directory_with_files_but_no_git_still_runs_and_says_so(self):
+        root = make_repo({"package.json": "{}", "index.js": "console.log(1)"})
+        out = self.run_cli(root, "--output", "/dev/null")
+        self.assertEqual(out.returncode, 0)
+
+    def test_the_report_flags_that_it_is_not_a_git_repository(self):
+        md = audit_markdown({"package.json": "{}", "index.js": "console.log(1)"})
+        self.assertIn("not a git repository", md.lower())
+
+
+class HouseStyleAppliesToOurOwnFiles(unittest.TestCase):
+    """check_report.py rejects em and en dashes in generated docs. The toolkit
+    that enforces that rule cannot ship them itself."""
+
+    ROOT = Path(__file__).resolve().parents[3]
+
+    def test_no_em_or_en_dashes_in_shipped_markdown(self):
+        offenders = []
+        for base in ("skills", "commands", "templates"):
+            d = self.ROOT / base
+            if not d.exists():
+                continue
+            for f in d.rglob("*.md"):
+                text = f.read_text(encoding="utf-8", errors="ignore")
+                if "\u2014" in text or "\u2013" in text:
+                    offenders.append(str(f.relative_to(self.ROOT)))
+        self.assertEqual(offenders, [], f"em or en dash in shipped text: {offenders}")
+
+
 if __name__ == "__main__":
     unittest.main()

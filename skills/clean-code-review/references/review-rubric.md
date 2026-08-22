@@ -36,7 +36,7 @@ Only make claims supported by code or configured tools. Recommend a dedicated se
 
 - Prefer visible, unsurprising flow and manageable nesting.
 - Flag duplicated decisions, invalid states that are easy to construct, and mutation that is hard to track.
-- Early returns, tables, composition, or polymorphism are options—not automatic answers.
+- Early returns, tables, composition, or polymorphism are options, not automatic answers.
 
 ## 6. Interfaces and dependencies
 
@@ -55,7 +55,7 @@ Only make claims supported by code or configured tools. Recommend a dedicated se
 ## 8. Tests and change safety
 
 - Test important behavior, business rules, boundaries, and regressions.
-- Evaluate whether the tests would catch the proposed failure—not merely whether a test file exists.
+- Evaluate whether the tests would catch the proposed failure, not merely whether a test file exists.
 - Prefer characterization tests before risky behavior-preserving refactors of untested code.
 - Do not require a unit test for trivial pass-through code when higher-level coverage is clearer.
 

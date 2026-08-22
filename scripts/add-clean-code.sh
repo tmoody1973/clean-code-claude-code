@@ -15,13 +15,31 @@
 
 set -euo pipefail
 
+usage() {
+  cat <<'USAGE'
+Install or update the Clean Code Standards block in a project's CLAUDE.md.
+
+Usage: add-clean-code.sh [target-dir] [--update] [--check] [--help]
+
+  target-dir   project to install into (default: the current directory)
+  (no flag)    install if absent; if present but out of date, say so and exit 3
+  --check      report only, change nothing (exit 3 if an update is available)
+  --update     replace the managed block in place, leaving everything else alone
+  --help       show this message
+
+The block is delimited by BEGIN/END markers and carries a version, so an
+installed copy can be compared with the shipped one.
+USAGE
+}
+
 target_dir="."
 mode="install"
 for arg in "$@"; do
   case "${arg}" in
     --update) mode="update" ;;
     --check)  mode="check" ;;
-    --*) echo "Unknown option: ${arg}" >&2; exit 64 ;;
+    -h|--help) usage; exit 0 ;;
+    --*) echo "Unknown option: ${arg}" >&2; echo >&2; usage >&2; exit 64 ;;
     *) target_dir="${arg}" ;;
   esac
 done

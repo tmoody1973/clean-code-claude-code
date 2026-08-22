@@ -11,10 +11,10 @@ State what was reviewed, overall confidence, and whether the code appears safe t
 Order findings by severity. For each finding include:
 
 1. **Title and severity**
-2. **Location** — file and tight line range
-3. **Evidence** — what the code demonstrably does
-4. **Impact** — realistic user, operational, or maintenance consequence
-5. **Recommendation** — smallest credible fix
+2. **Location**: file and tight line range
+3. **Evidence**: what the code demonstrably does
+4. **Impact**: realistic user, operational, or maintenance consequence
+5. **Recommendation**: smallest credible fix
 
 For beginner-facing reports, express evidence, impact, and recommendation as What / Why / Fix.
 

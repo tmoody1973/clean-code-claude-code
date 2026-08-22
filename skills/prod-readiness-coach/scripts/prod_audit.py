@@ -50,9 +50,20 @@ def main():
                               "skipped in scoring. Guessed from the stack when omitted (strict when unsure).")
     args = parser.parse_args()
 
+    HINT = ("Check the path, or pass `--repo .` to audit the directory you are in.")
     repo_path = Path(args.repo)
     if not repo_path.exists():
-        print(f"error: repo path does not exist: {repo_path}", file=sys.stderr)
+        print(f"error: repo path does not exist: {repo_path}\n{HINT}", file=sys.stderr)
+        sys.exit(2)
+    if not repo_path.is_dir():
+        print(f"error: --repo must be a directory, and {repo_path} is a file.\n{HINT}",
+              file=sys.stderr)
+        sys.exit(2)
+    # Grading an empty folder produces a confident score about nothing, which is
+    # the exact failure this tool exists to catch. Refuse instead.
+    if not Repo(repo_path).git_files():
+        print(f"error: {repo_path} has no files to audit. Nothing was scanned, so no "
+              f"score would mean anything.\n{HINT}", file=sys.stderr)
         sys.exit(2)
 
     categories, fingerprint = run_audit(repo_path, args.profile)
