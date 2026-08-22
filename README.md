@@ -153,6 +153,23 @@ To add the standards to a project without the plugin:
 
 It creates or appends to `CLAUDE.md` and refuses to overwrite a section it cannot migrate safely.
 
+To gate a pipeline on the audit, run the script directly and read the exit code:
+
+```bash
+python3 skills/prod-readiness-coach/scripts/prod_audit.py \
+  --repo . --output /dev/null --fail-on critical
+```
+
+The exit codes are a contract you can wire CI against:
+
+| Code | Meaning |
+|---|---|
+| `0` | The audit ran and nothing at or above `--fail-on` failed. |
+| `1` | The audit ran and something at or above `--fail-on` failed. |
+| `2` | The audit could not run: the path is missing, is a file, or holds no files. |
+
+Exit `2` is never a verdict about your code. It means nothing was scanned, so check the path.
+
 Repository layout:
 
 ```text
@@ -163,10 +180,12 @@ Repository layout:
 ├── skills/                  # the six skills and their reference files
 ├── scripts/                 # installer and validator
 ├── templates/CLAUDE.md      # the always-on standards
-└── docs/                    # guides, including the release checklist
+└── docs/
+    ├── decisions/           # why each non-obvious call was made
+    └── ...                  # guides, including the release checklist
 ```
 
-The root `CLAUDE.md` holds contributor instructions for this repository. User-facing behavior lives in the skills, commands, and the installable template. Maintainers follow the [release checklist](docs/release-checklist.md) before tagging.
+The root `CLAUDE.md` holds contributor instructions for this repository. User-facing behavior lives in the skills, commands, and the installable template. Maintainers follow the [release checklist](docs/release-checklist.md) before tagging. Every call that a reasonable person could have made differently is written up in [docs/decisions](docs/decisions), in plain English, with what was given up and how we will know if it was right.
 
 **One of the six tools is a script, and that script is tested.** `prod-readiness-coach` keeps a coverage grid: every check has to prove it fires when a control is missing and stays quiet when the control is there. It sits at 83 of 83 and CI fails if it slips. Run `python3 skills/prod-readiness-coach/scripts/coverage_grid.py` to see it.
 

@@ -22,6 +22,20 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+# The audit modules use syntax that 3.8 cannot parse, so this has to sit ABOVE
+# the imports below. Moved under them, it never runs and the reader gets
+# "TypeError: 'type' object is not subscriptable" instead of a sentence. The
+# audience here is often on the macOS system python3, which is old.
+MIN_PYTHON = (3, 9)
+if sys.version_info < MIN_PYTHON:
+    sys.stderr.write(
+        f"error: this script needs Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or newer, "
+        f"and you are running {sys.version.split()[0]}.\n"
+        "On macOS the built-in python3 is usually older than the one you installed. "
+        "Try `python3.12` or `python3.11` in place of `python3`, or install a current "
+        "Python from python.org or with `brew install python`.\n")
+    raise SystemExit(2)
+
 from audit.model import (  # noqa: F401  (re-exported for callers and tests)
     CHECK_SKIPS_BY_PROFILE, CONTRADICTIONS, MIN_DOC_WORDS, PROFILES,
     SEVERITY_LABEL, SEVERITY_PENALTY, SEVERITY_PENALTY_WARN, WAIVER_FIELDS, WAIVER_FILE, WAIVER_MAX_AGE_DAYS,

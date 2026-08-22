@@ -803,5 +803,40 @@ class TheOutputIsAContract(unittest.TestCase):
         self.assertIn("Losing a day of mail would be bad.", md)
 
 
+class TheReadmeMustMatchTheCode(unittest.TestCase):
+    """The README promised a clear message on an old Python and no guard existed.
+    A promise in a document that the software does not keep is the same defect
+    this toolkit exists to find, so the two are pinned to each other here."""
+
+    ROOT = Path(__file__).resolve().parents[3]
+    SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "prod_audit.py"
+
+    def test_the_guard_sits_above_the_imports_that_would_crash_first(self):
+        src = self.SCRIPT.read_text()
+        self.assertLess(src.index("sys.version_info"), src.index("from audit."),
+                        "the version guard is below the imports, so it can never run")
+
+    def test_the_readme_states_the_version_the_code_enforces(self):
+        readme = (self.ROOT / "README.md").read_text()
+        major, minor = prod_audit.MIN_PYTHON
+        self.assertIn(f"Python {major}.{minor} or newer", readme,
+                      f"README does not state the enforced floor of {major}.{minor}")
+
+    def test_the_readme_names_the_right_number_of_skills_and_commands(self):
+        readme = (self.ROOT / "README.md").read_text()
+        skills = len([d for d in (self.ROOT / "skills").iterdir() if d.is_dir()])
+        commands = len(list((self.ROOT / "commands").glob("*.md")))
+        words = {6: "six", 3: "three", 5: "five", 7: "seven", 4: "four"}
+        self.assertIn(f"{words[skills]} skills and {words[commands]} commands", readme,
+                      f"README count is stale: there are {skills} skills and {commands} commands")
+
+    def test_every_link_in_the_readme_points_at_something_real(self):
+        import re
+        readme = (self.ROOT / "README.md").read_text()
+        dead = [t for t in re.findall(r"\]\((?!https?:)([^)#]+)", readme)
+                if not (self.ROOT / t).exists()]
+        self.assertEqual(dead, [], f"dead links in README: {dead}")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.6.2
+
+A documentation pass that found the README making a promise the code did not keep.
+
+**The Python version guard now exists.** The README said the script "stops with a clear message on anything older" than Python 3.9. No such check was anywhere in the codebase. On 3.8 the reader got `TypeError: 'type' object is not subscriptable` from an import, which is not a message, and the audience for this toolkit is often running the macOS system python3. There is now a guard, it sits above the imports that would crash first, and it names the version you have, the version you need, and two ways to fix it. It exits 2, which is the documented code for "could not run".
+
+**The README and the code are pinned to each other.** Four new tests: the guard must sit above the imports or it can never fire; the version the README states must be the version the code enforces; the skill and command counts in the README must match what is on disk; and every relative link in the README must point at a file that exists. A promise in a document that the software does not keep is the same defect this toolkit exists to find.
+
+**Exit codes are in the README.** 3.6.1 documented them in `--help` and SKILL.md but not where someone wiring a pipeline would look, along with the command to gate CI on the audit.
+
+**The decision log is linked.** Nine decisions are written up in `docs/decisions`, in plain English, with what was given up and how we will know if each was right. Nothing pointed at them, and the repository layout in the README predated the folder.
+
+Tests: 122.
+
 ## 3.6.1
 
 A second developer review, run under the stop rule from 3.6.0: look for a new class of defect, not another instance of a closed one. Nine adversarial probes found every closed class still closed. A filename carrying `|` cannot forge a table column, a filename starting `#` cannot forge a heading, a symlink to `~/.ssh/id_ed25519` leaks nothing, binary and invalid-UTF-8 files do not crash it, a 400,000-line file hits the byte cap, a symlink loop does not hang it, 10,000 files take about ten seconds with no blowup, and two runs against the same commit are byte-identical in both markdown and JSON.
