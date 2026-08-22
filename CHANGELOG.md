@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.3.0
+
+Two verified defects in how the coach treats evidence, and the trap they created in the fix brief.
+
+- **Waivers.** A control can live outside the repository (an org-level pipeline, a platform dashboard, a vault). Before this, `--fail-on critical` could never reach 0 for such a repo, so the phase gate demanded something impossible and quietly rewarded faking the fix. `.prod-audit-waivers.json` now records a human's dated, evidenced acceptance of a real finding. Every field is required, rejected entries are printed, waivers expire after 180 days, and every report lists what was waived and who accepted it. Claude is instructed never to write this file itself.
+- **A text match can no longer be celebrated as a win.** A category whose only pass rested on a grep hit could score 100 and be written up under "What's already solid." Categories now carry `has_weak_evidence`, the report table marks them "(text match only)", and the template routes them to a separate "Looks fine, but only from a text match" section.
+- **Conflicting signals are now reported.** New `contradictions` array names pairs where one check's pass is undercut by another's failure: a clean secret scan with no `.gitignore` guard, request IDs with no logger, test files no pipeline runs, a rollback doc that does not cover every surface. The fix brief must resolve these before its phases.
+- Tests: 37.
+
 ## 3.2.3
 
 - Bug fix from a real repo: monorepos were read as if only the root `package.json` existed. Workspace members (`apps/*`, `packages/*`, `services/*`) now contribute dependencies, scripts, and platform config (`vercel.json`, `fly.toml`, `netlify.toml`, `wrangler.*`, `render.yaml`, `Procfile`, `convex/schema.*`).
