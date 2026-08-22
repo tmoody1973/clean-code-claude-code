@@ -45,6 +45,10 @@ For a beginner or vibe coder, explain each important finding in three short part
 
 Avoid unexplained acronyms and pattern-name trivia. Teach the decision, not the vocabulary.
 
+## Where the review goes
+
+Report in chat by default. Write a file only if the user asks, and then to a path they name. Do not create files in their repository unannounced.
+
 ## Boundaries
 
 - For a product-level assessment, use `product-readiness-review`.

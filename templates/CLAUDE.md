@@ -1,4 +1,4 @@
-<!-- BEGIN CLEAN CODE STANDARDS -->
+<!-- BEGIN CLEAN CODE STANDARDS v3.5.0 -->
 # Clean Code Standards
 
 Build software that is correct, safe to change, and understandable to the next developer. Apply these rules to new code. In existing code, report broader problems instead of rewriting them unless the user asks.
@@ -19,7 +19,7 @@ Build software that is correct, safe to change, and understandable to the next d
 
 - Use names that communicate intent at their scope and match product vocabulary.
 - Keep responsibilities cohesive. Readability beats arbitrary function-length or parameter-count limits.
-- Comments explain decisions, business rules, constraints, or non-obvious techniques—not syntax.
+- Comments explain decisions, business rules, constraints, or non-obvious techniques, not syntax.
 - Avoid abstraction until it protects a real boundary or repeated variation.
 
 ## Correctness and safety
@@ -31,7 +31,7 @@ Build software that is correct, safe to change, and understandable to the next d
 
 ## Tests and verification
 
-- Test important behavior, business rules, boundaries, and regressions—not every trivial line.
+- Test important behavior, business rules, boundaries, and regressions, not every trivial line.
 - Before risky changes to untested code, add a characterization test or explain the risk and ask how to proceed.
 - Run the narrowest relevant checks after edits and report what ran.
 
@@ -44,8 +44,8 @@ Build software that is correct, safe to change, and understandable to the next d
 ## Going live
 
 - Add CI before a project's first shared or live deployment, and earlier if it already has real tests, a collaborator, or automatic deploys. "Live" means a real person, a scheduled job, or another service depends on it; connecting a deploy platform counts.
-- Before that day, do not add CI ceremony to a sketch.
-- On that day, or whenever a live repo has no CI: add a workflow that runs typecheck, tests, and build on every pull request and push to `main`. Prove it by breaking one test, watching it fail, then reverting. Then require that check via branch protection, which is a manual settings step for the human.
+- Before then, while it is still a sketch nobody depends on, do not add CI ceremony.
+- At that point, or whenever a live repo has no CI: add a workflow that runs typecheck, tests, and build on every pull request and push to `main`. Prove it by breaking one test, watching it fail, then reverting. Then require that check via branch protection, which is a manual settings step for the human.
 - Before a launch, schema change, or handoff, offer the `prod-readiness-coach` skill.
 - Never merge over a failing check "just this once."
 

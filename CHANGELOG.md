@@ -1,5 +1,31 @@
 # Changelog
 
+## 3.5.0
+
+3.4.0 made the engine honest about what it found. This release is about what it was never looking at, and about the toolkit holding together as one thing.
+
+**Access Control, a new category. The tool shipped three versions with no authentication check at all.**
+- `auth-1`: is there an authentication mechanism, and which one.
+- `auth-2`: do request handlers consult an identity, or serve anyone who reaches the URL. Reported as a text match, because mentioning a guard is not the same as being guarded.
+- `auth-3`: does a permission check grant access when its own environment variable is unset. Real code rarely tests the variable inline, so the check learns the local names first, then looks for the fail-open branch on them.
+- Why it matters: this was written the same afternoon an independent review of a live application found a send endpoint reachable by any signed-in user and an owner check returning true when its variable was unset. The audit had graded that repository "A, strong evidence of controls". It now quotes the exact line and grades it D.
+
+**Warnings cost points.** Eight checks reported as `warn` with a severity badge and subtracted nothing, so a repository could display three MEDIUM findings and still score 100 in those categories: 55 points shown but not counted. A warning now costs half of the same finding failing. Less certain, never free.
+
+**The installer can deliver a correction.** `/add-clean-code` printed "already installed" and exited 0 without comparing anything, so the going-live rule corrected in 3.2.1 could never reach anyone who installed before it. The managed block now carries a version; a re-run diffs it and exits 3 when an update is available; `--update` replaces only the block between the markers; `--check` reports without touching anything. The dangling "that day" left in the template by the 3.2.1 edit is fixed.
+
+**The editing skill now says what its verification is worth.** `boy-scout-cleanup` claimed "behavior-preserving" while `/refactor`, its sibling with the same risk, carried the discipline that makes such a claim meaningful. A mutation test showed three of four real behavior changes passing a green suite. The skill now requires an undo to exist, requires checking that the suite covers the behavior being touched, and requires saying which evidence was used.
+
+**Every skill was run once against a real repository by an independent tester, and every one came back "partly works".**
+- `clean-code-scaffold` invented a stack on an empty directory without saying it was guessing, and produced a scaffold that failed on first run. It now asks when there is nothing to detect, and runs what it built the way its own README says to.
+- `developer-handoff` scoped verification to setup commands, and its template's empty sections pulled toward filling them. It now marks each statement as ran it, read it, or told to me, and deletes sections with no referent.
+- `product-readiness-review` promised in its description to run the coach first and never mentioned it in the workflow, called builds "safe" when they write into the repository, and judged against a milestone it never asked for. All three fixed.
+- `clean-code-review` never said where the review goes.
+
+**House style.** Em dashes are gone from every skill, command and template, so the report linter no longer rejects text this toolkit ships.
+
+Tests: 68.
+
 ## 3.4.0
 
 An audit of the auditor. A deliberately hollow repo, every control a costume, scored 78 out of 100 with nine passing checks, five of them false. Fixing that exposed more.

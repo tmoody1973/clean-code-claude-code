@@ -24,7 +24,7 @@ from pathlib import Path
 
 from audit.model import (  # noqa: F401  (re-exported for callers and tests)
     CHECK_SKIPS_BY_PROFILE, CONTRADICTIONS, MIN_DOC_WORDS, PROFILES,
-    SEVERITY_LABEL, SEVERITY_PENALTY, WAIVER_FIELDS, WAIVER_FILE, WAIVER_MAX_AGE_DAYS,
+    SEVERITY_LABEL, SEVERITY_PENALTY, SEVERITY_PENALTY_WARN, WAIVER_FIELDS, WAIVER_FILE, WAIVER_MAX_AGE_DAYS,
     WEAK_PASS_IDS, Category, CheckResult, find_contradictions, has_substance,
     load_waivers, runs_a_test_suite,
 )

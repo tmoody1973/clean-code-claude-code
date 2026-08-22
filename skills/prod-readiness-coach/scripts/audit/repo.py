@@ -144,6 +144,10 @@ class Repo:
         return [f for f in self.find_any(["apps/*/package.json", "packages/*/package.json", "services/*/package.json"])
                 if "node_modules" not in f]
 
+    def code_files(self) -> list[str]:
+        """Tracked source files, the same set grep() searches by default."""
+        return [f for f in self.git_files() if Path(f).suffix in CODE_EXTS]
+
     def package_json(self) -> dict:
         """Root package.json, with workspace members' dependencies and scripts merged in.
         A monorepo's frameworks live in apps/* and packages/*, not at the root."""

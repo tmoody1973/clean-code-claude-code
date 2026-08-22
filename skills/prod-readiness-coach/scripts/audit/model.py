@@ -22,6 +22,8 @@ SEVERITY_LABEL = {
 # Points removed from the 100-point category score when a check with this
 # severity fails. Weighted so a single CRITICAL miss visibly tanks the score.
 SEVERITY_PENALTY = {"critical": 30, "high": 18, "medium": 10, "low": 5, "info": 0}
+# A warning is the same finding held with less certainty, so it costs half, never zero.
+SEVERITY_PENALTY_WARN = {k: (v + 1) // 2 for k, v in SEVERITY_PENALTY.items()}
 
 
 @dataclass
@@ -44,7 +46,7 @@ class CheckResult:
 
 
 # Checks whose pass is based on a text search, not a structural check.
-WEAK_PASS_IDS = {"log-4", "res-3", "sec-4", "ms-2"}
+WEAK_PASS_IDS = {"log-4", "res-3", "sec-4", "ms-2", "auth-2", "auth-3"}
 
 # A control can live outside the repository (an org-level pipeline, a platform
 # dashboard, a secrets vault). Without a way to say so, --fail-on can never
@@ -163,7 +165,7 @@ def find_contradictions(categories: list["Category"]) -> list[dict]:
 # surface implies web-app (strict). A language alone implies nothing, so the
 # profile is "unknown" and runtime checks report insufficient evidence.
 PROFILES = ("web-app", "api", "worker", "cli", "library", "unknown")
-_SERVICE_ONLY = {"log-3", "res-3"}                       # needs an HTTP surface
+_SERVICE_ONLY = {"log-3", "res-3", "auth-1", "auth-2", "auth-3"}                       # needs an HTTP surface
 _DEPLOYED_ONLY = {"log-1", "log-2", "log-4", "res-1", "res-2", "res-4", "res-5",
                   "sec-5", "ms-1", "ci-5"} | _SERVICE_ONLY  # needs to run somewhere
 CHECK_SKIPS_BY_PROFILE = {
@@ -188,10 +190,14 @@ class Category:
 
     @property
     def score(self) -> int:
+        # A "warn" is a real finding shown with a severity badge, so it has to move the
+        # number. It costs half of the same finding failing: less certain, still not free.
         score = 100
         for c in self.checks:
             if c.status == "fail":
                 score -= SEVERITY_PENALTY.get(c.severity, 5)
+            elif c.status == "warn":
+                score -= SEVERITY_PENALTY_WARN.get(c.severity, 0)
         return max(0, score)
 
     @property

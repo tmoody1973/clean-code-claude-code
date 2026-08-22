@@ -29,7 +29,7 @@ You do not need to remember tool names. Ask what you want and Claude picks the t
 
 | You want to... | Say this | What happens |
 |---|---|---|
-| Know what is missing before going live | "Audit this repo for production readiness" | A script scans for the things that bite you in production: no automatic test runner, no error alerts, secrets in the code, no undo plan. You get a plain-English report that explains each gap, and a step-by-step fix list you can hand back to Claude. Writes two report files to a scratch folder, not your repo, unless you ask. |
+| Know what is missing before going live | "Audit this repo for production readiness" | A script scans for the things that bite you in production: no automatic test runner, no error alerts, secrets in the code, a page anyone can reach that should be locked, no undo plan. You get a plain-English report that explains each gap, and a step-by-step fix list you can hand back to Claude. Writes two report files to a scratch folder, not your repo, unless you ask. |
 | Know if the product actually works for users | "Is this product ready to launch?" | Claude reads the app as a whole, not file by file. Does it do what it claims? What would a real user hit first? Changes nothing. |
 | Understand the quality of your code | "Review this code in plain English" | A report on what is unclear, untested, or fragile. Changes nothing. |
 | Get a quick cleanup list | `/code-smells` | A short list of small things worth a look. Changes nothing. |
@@ -77,6 +77,10 @@ So the audit takes waivers. Add `.prod-audit-waivers.json` to your repo:
 ```
 
 Every field is required. A waived check stops counting toward the score and the exit code, but it appears in every report with its reason, its evidence, and the name of the person who accepted it. Waivers expire after 180 days, and then the finding comes back. Claude will never write this file for you. It shows you the entry and you decide.
+
+## What it does not check
+
+It reads files, so it can tell you a control is missing or that a guard lets everyone through when a setting is absent. It cannot tell you your permissions model is correct, that your business rules are right, or that the app works. The access-control checks are deliberately shallow and say so in their own wording. A clean run is a starting point for a human, never a security review.
 
 ## The two readiness tools, and when to use which
 

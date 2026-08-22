@@ -12,6 +12,7 @@ from .fingerprint import StackFingerprint, detect_stack_fingerprint
 from .checks_build import check_claude_md, check_ci_pipeline, check_test_scripts_defined
 from .checks_runtime import (check_multi_surface_deployment, check_resilience_and_runbooks,
                              check_secrets_management, check_structured_logging)
+from .checks_access import check_access_control
 from .checks_quality import check_dependency_security, check_testing_quality_gates
 
 # --------------------------------------------------------------------------
@@ -23,6 +24,10 @@ CATEGORY_META = [
      "Documentation that lets AI coding agents and human contributors operate "
      "safely and consistently on the codebase.",
      "https://docs.claude.com/en/docs/claude-code/memory"),
+    ("Access Control", "Access Control",
+     "Who is allowed to do what. Shallow by design: these checks can show a guard is "
+     "missing or fails open, never that an authorization model is correct.",
+     "https://owasp.org/Top10/A01_2021-Broken_Access_Control/"),
     ("CI/CD Pipeline", "CI/CD Pipeline",
      "Automated build/test/lint gates that block broken code from reaching production.",
      "https://docs.github.com/en/actions/learn-github-actions"),
@@ -88,6 +93,7 @@ def run_audit(repo_path: Path, profile: Optional[str] = None) -> tuple[list[Cate
     categories = {key: Category(key, title, desc, ref) for key, title, desc, ref in CATEGORY_META}
 
     categories["AI Agent Context"].checks.append(check_claude_md(repo))
+    categories["Access Control"].checks.extend(check_access_control(repo))
     categories["CI/CD Pipeline"].checks.extend(check_ci_pipeline(repo))
     categories["CI/CD Pipeline"].checks.append(check_test_scripts_defined(repo))
     categories["Structured Logging & Observability"].checks.extend(check_structured_logging(repo))
