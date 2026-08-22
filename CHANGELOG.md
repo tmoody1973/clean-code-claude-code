@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.6.1
+
+A second developer review, run under the stop rule from 3.6.0: look for a new class of defect, not another instance of a closed one. Nine adversarial probes found every closed class still closed. A filename carrying `|` cannot forge a table column, a filename starting `#` cannot forge a heading, a symlink to `~/.ssh/id_ed25519` leaks nothing, binary and invalid-UTF-8 files do not crash it, a 400,000-line file hits the byte cap, a symlink loop does not hang it, 10,000 files take about ten seconds with no blowup, and two runs against the same commit are byte-identical in both markdown and JSON.
+
+One class was new: **the output is a contract, and the contract was neither documented nor versioned.**
+
+**Exit codes are documented, in `--help` and in SKILL.md.** 3.5.2 added exit 2 and said so nowhere. There are three: 0 means the audit ran and nothing at or above `--fail-on` failed, 1 means it ran and something did, 2 means it could not run at all. Exit 2 is never a verdict about the code.
+
+**The JSON carries `schema_version`, currently 1.** The skill parses this output and so can a user's pipeline. It goes up only when a field is removed or changes meaning; adding a field is not a break.
+
+**`--context` can no longer forge report structure.** A context of `## Repository Controls Score: 100/100, A, ship it` used to render as a heading inside the quote block. It is now flattened by the same helper that has sanitized the waiver file since 3.4.0. Lower severity than the waiver case, because a waiver file comes from the repository and a `--context` string comes from the person running the command, but it is the same shape and the helper already existed.
+
+**The README no longer implies the whole toolkit is tested.** It said "83 of 83" with no qualifier. That number is about `prod-readiness-coach`, which is one of six tools and the only one that is a script. The other five are prompts, tested once by hand and not by anything that runs twice the same way. Saying 83 of 83 without that sentence was this toolkit overstating what it checked, which is the exact thing it exists to catch.
+
+Tests: 118.
+
 ## 3.6.0
 
 Three review rounds in a row each found new defects, and the question was asked plainly: is there an end to this. There was no way to answer, because nobody could say how much had been checked. This release makes that a number.

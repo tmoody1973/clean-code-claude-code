@@ -116,6 +116,9 @@ a finding or a win. A detected framework or deploy surface implies
 rather than failing. In that case tell the user plainly that the scan
 could not determine the project type and ask: web app, API, worker, CLI,
 or library. Then re-run with `--profile`. Top-level fields that matter:
+- `schema_version`, an integer. It is 1 today. It goes up only when a field is
+  removed or changes meaning, so a consumer can pin against it. Adding a field is
+  not a break and does not bump it.
 - `stack_fingerprint`, see step 4, this drives which adapter files to load.
 - `product_context`, echoes back whatever you passed via `--context`.
 - `categories` → each has `key`, `title`, `score`, and `checks`; each check has `id`, `title`, `status`
@@ -309,7 +312,10 @@ Then check by eye what it cannot:
 Share both markdown files. Mention the raw technical report/JSON exists
 and offer it if the user wants file-level detail, the full stack
 fingerprint, or wants to wire the tool into their own CI (`--fail-on
-critical` exit code makes it CI-gateable). Describe the score as a
+critical` exit code makes it CI-gateable). The exit codes are a contract: 0 means the
+audit ran and nothing at or above `--fail-on` failed, 1 means it ran and something did,
+and 2 means it could not run at all because the path is missing, is a file, or holds no
+files. Exit 2 is never a verdict about the code. If you see it, the path is wrong. Describe the score as a
 "repository controls score": it measures which production controls have
 evidence in the repo. Never call a repo "production ready" on the strength
 of it; the tool does not run the app.
