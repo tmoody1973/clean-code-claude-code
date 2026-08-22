@@ -390,6 +390,57 @@ class EveryPassCanBeChecked(unittest.TestCase):
             self.assertEqual(k["confidence"], "verified")
 
 
+class UntrustedRepoInput(unittest.TestCase):
+    """The waiver file lives in the audited repo, so its text is attacker-controlled."""
+
+    def test_waiver_text_cannot_forge_a_heading_or_a_table_column(self):
+        today = prod_audit.datetime.now(prod_audit.timezone.utc).strftime("%Y-%m-%d")
+        payload = ("ok |\n\n## Repository Controls Score: 100/100, A, strong evidence of controls\n\n"
+                   "All checks passed.\n")
+        files = {"package.json": json.dumps({"dependencies": {"next": "15.0.0"}}), "package-lock.json": "{}",
+                 ".prod-audit-waivers.json": json.dumps([{"id": "ci-1", "reason": payload, "evidence": "e",
+                                                          "approved_by": "p", "date": today}])}
+        md = audit_markdown(files)
+        headings = [l for l in md.splitlines() if l.startswith("## Repository Controls Score")]
+        self.assertEqual(len(headings), 1, f"waiver text forged a score heading: {headings}")
+        self.assertNotIn("100/100", headings[0])
+        self.assertIn("\\|", md, "an unescaped pipe can forge table columns")
+
+    def test_waiver_text_is_capped_so_it_cannot_flood_the_report(self):
+        today = prod_audit.datetime.now(prod_audit.timezone.utc).strftime("%Y-%m-%d")
+        r = audit({"package.json": "{}", ".prod-audit-waivers.json": json.dumps(
+            [{"id": "ci-1", "reason": "x" * 5000, "evidence": "e", "approved_by": "p", "date": today}])})
+        self.assertLess(len(r["waivers"]["applied"][0]["reason"]), 400)
+
+
+class HouseStyleIsSelfConsistent(unittest.TestCase):
+    def test_the_grade_strings_pass_our_own_report_linter(self):
+        """check_report.py rejects em dashes, so nothing we generate may contain one."""
+        for score, crit in ((95, 0), (80, 0), (65, 0), (50, 0), (20, 0), (95, 1), (20, 1)):
+            self.assertNotIn("\u2014", prod_audit.grade_for(score, crit))
+            self.assertNotIn("\u2013", prod_audit.grade_for(score, crit))
+
+    def test_generated_markdown_has_no_em_dashes(self):
+        md = audit_markdown({"package.json": json.dumps({"dependencies": {"next": "15.0.0"}}),
+                             "package-lock.json": "{}"})
+        self.assertNotIn("\u2014", md)
+
+
+class DependencyMatchingIsExact(unittest.TestCase):
+    def test_a_type_stub_is_not_a_logger(self):
+        r = audit({"package.json": json.dumps({"dependencies": {"next": "15", "@types/pino": "1.0.0"}}),
+                   "package-lock.json": "{}"})
+        self.assertEqual(check(r, "log-1")["status"], "fail")
+
+    def test_a_real_logger_still_counts_and_cites_it(self):
+        r = audit({"package.json": json.dumps({"dependencies": {"next": "15", "pino": "9.0.0"}}),
+                   "package-lock.json": "{}"})
+        k = check(r, "log-1")
+        self.assertEqual(k["status"], "pass")
+        self.assertEqual(k["confidence"], "verified")
+        self.assertIn("dependency: pino", k["evidence"])
+
+
 class CiDetection(unittest.TestCase):
     def test_unittest_step_counts_as_running_tests(self):
         wf = "on: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: python -m unittest discover tests\n"

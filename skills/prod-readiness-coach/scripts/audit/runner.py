@@ -1,10 +1,7 @@
 """Assemble the categories, apply profile skips, weak-evidence rules, and waivers."""
-import fnmatch
-import json
 import re
-import subprocess
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 

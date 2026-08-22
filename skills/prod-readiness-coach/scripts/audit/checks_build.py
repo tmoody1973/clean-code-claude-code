@@ -1,10 +1,7 @@
 """Checks about how code gets built and shipped: agent context, CI, test wiring."""
-import fnmatch
-import json
 import re
-import subprocess
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -12,7 +9,7 @@ from .model import CheckResult, runs_a_test_suite
 from .repo import Repo
 
 # --------------------------------------------------------------------------
-# Individual checks — each returns a CheckResult
+# Individual checks, each returns a CheckResult
 # --------------------------------------------------------------------------
 
 def check_claude_md(repo: Repo) -> CheckResult:
@@ -56,7 +53,7 @@ def check_claude_md(repo: Repo) -> CheckResult:
         return CheckResult(
             "agent-1", "AI Agent Context", "CLAUDE.md / AGENTS.md present",
             "warn", "low",
-            f"{path} exists but is very short ({word_count} words) — may be a stub.",
+            f"{path} exists but is very short ({word_count} words), may be a stub.",
             "Expand CLAUDE.md with commands (build/test/lint/deploy), directory "
             "map, and any non-obvious conventions or footguns.",
             evidence=[path],
@@ -95,7 +92,7 @@ def check_ci_pipeline(repo: Repo) -> list[CheckResult]:
         results.append(CheckResult(
             "ci-2", "CI/CD Pipeline", "Pipeline runs automated tests",
             "fail", "critical",
-            "Cannot verify test execution — no CI pipeline exists.",
+            "Cannot verify test execution, no CI pipeline exists.",
             "See ci-1.",
             best_practice_ref=ref,
         ))
@@ -151,7 +148,7 @@ def check_ci_pipeline(repo: Repo) -> list[CheckResult]:
         "pass" if triggers_on_pr else "fail",
         "info" if triggers_on_pr else "high",
         "Pipeline triggers on pull/merge requests." if triggers_on_pr else
-        "No pull_request/merge_request trigger found — CI may only run after merge, "
+        "No pull_request/merge_request trigger found, CI may only run after merge, "
         "which doesn't block bad code from landing on main.",
         "" if triggers_on_pr else "Add `on: pull_request` (or equivalent) so CI runs "
         "before code merges, not just after.",
@@ -166,7 +163,7 @@ def check_ci_pipeline(repo: Repo) -> list[CheckResult]:
         "info" if has_deploy_step else "low",
         "A deployment step/integration was detected in CI config." if has_deploy_step else
         "No deployment step found in CI config (deployment may be handled by an "
-        "external platform e.g. Vercel/Netlify git integration — verify manually).",
+        "external platform e.g. Vercel/Netlify git integration, verify manually).",
         evidence=workflow_files,
         best_practice_ref=ref,
     ))

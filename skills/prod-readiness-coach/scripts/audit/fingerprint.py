@@ -1,10 +1,7 @@
 """What kind of project is this, and where does it deploy."""
-import fnmatch
-import json
 import re
-import subprocess
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -12,12 +9,12 @@ from .model import CHECK_SKIPS_BY_PROFILE, PROFILES
 from .repo import Repo
 
 # --------------------------------------------------------------------------
-# Stack fingerprinting — deterministic detection of runtime/framework/deploy
+# Stack fingerprinting, deterministic detection of runtime/framework/deploy
 # signals from manifests and deploy configs. This is what lets the skill
 # layer load only the reference adapter file(s) relevant to THIS repo
 # (progressive disclosure) instead of hardcoding stack-specific advice into
 # one generic prompt. Two runs on the same commit must produce the same
-# fingerprint — no LLM involvement here.
+# fingerprint, no LLM involvement here.
 # --------------------------------------------------------------------------
 
 @dataclass
@@ -47,7 +44,7 @@ class StackFingerprint:
 
 def parse_compose_services(content: str) -> dict[str, str]:
     """Lightweight, stdlib-only extraction of top-level service blocks from a
-    docker-compose file. Not a full YAML parser — deliberately heuristic and
+    docker-compose file. Not a full YAML parser, deliberately heuristic and
     indentation-based, which is sufficient for the standard 2-space-indented
     `services:` block every compose file uses, and keeps this tool dependency-free.
     """
@@ -62,7 +59,7 @@ def parse_compose_services(content: str) -> dict[str, str]:
             continue
         if not in_services:
             continue
-        if re.match(r"^\S", line):  # dedented back to top-level key — services block ended
+        if re.match(r"^\S", line):  # dedented back to top-level key, services block ended
             if current:
                 services[current] = "\n".join(buf)
             break

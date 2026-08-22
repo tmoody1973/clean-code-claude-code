@@ -1,10 +1,7 @@
 """Checks about the app while it runs: logging, secrets, resilience, rollback."""
-import fnmatch
-import json
 import re
-import subprocess
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -30,11 +27,20 @@ def check_structured_logging(repo: Repo) -> list[CheckResult]:
     ref = "https://sre.google/sre-book/monitoring-distributed-systems/"
     results = []
     pkg = repo.package_json()
-    deps_blob = json.dumps(pkg.get("dependencies", {}) | pkg.get("devDependencies", {})) if pkg else ""
-    req = repo.requirements_text()
-    haystack = (deps_blob + "\n" + req).lower()
+    dep_names = {n.lower() for n in ((pkg.get("dependencies", {}) | pkg.get("devDependencies", {})).keys()
+                                     if pkg else [])}
+    # Python requirements: one package per line, strip version specifiers.
+    dep_names |= {re.split(r"[=<>!~\[; ]", line.strip(), 1)[0].lower()
+                  for line in repo.requirements_text().splitlines() if line.strip()
+                  and not line.lstrip().startswith("#")}
+    # A dependency named @types/pino is a type stub, not a logger. Match the package
+    # name (allowing a scope prefix), never a substring of a serialized blob.
+    def _installed(lib: str) -> bool:
+        lib = lib.lower()
+        return any(n == lib or (n.endswith(f"/{lib}") and not n.startswith("@types/"))
+                   for n in dep_names)
 
-    matched_logging_libs = [lib for lib in LOGGING_LIBS if lib.lower() in haystack]
+    matched_logging_libs = [lib for lib in LOGGING_LIBS if _installed(lib)]
     if matched_logging_libs:
         results.append(CheckResult(
             "log-1", "Structured Logging & Observability", "Structured logging library configured",
@@ -61,7 +67,7 @@ def check_structured_logging(repo: Repo) -> list[CheckResult]:
             best_practice_ref=ref,
         ))
 
-    matched_apm = [lib for lib in APM_LIBS if lib.lower() in haystack]
+    matched_apm = [lib for lib in APM_LIBS if _installed(lib)]
     if matched_apm:
         results.append(CheckResult(
             "log-2", "Structured Logging & Observability", "Error tracking / APM configured",
@@ -177,7 +183,7 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
         "pass" if ignores_env else "fail",
         "info" if ignores_env else "critical",
         "`.gitignore` excludes .env* files." if ignores_env else
-        "`.gitignore` does not exclude .env files — real secrets could be "
+        "`.gitignore` does not exclude .env files, real secrets could be "
         "committed accidentally.",
         "" if ignores_env else "Add `.env*` (with an explicit `!.env.example` "
         "allow-rule) to .gitignore immediately.",
@@ -227,7 +233,7 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
             f"Found {len(secret_hits)} potential hardcoded secret(s) in source code.",
             "Move all secrets to environment variables or a secrets manager "
             "(Vercel/Doppler/AWS Secrets Manager/Vault). Rotate any credential "
-            "that was ever committed, even if later removed — it remains in git history.",
+            "that was ever committed, even if later removed, it remains in git history.",
             # Never put the matched line in the report: it would carry the secret
             # into JSON, Markdown, CI artifacts, and the agent's context.
             evidence=[f"{f}:{lineno} [{label}] {fp}" for f, lineno, label, fp in secret_hits[:10]],
@@ -239,7 +245,7 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
             "pass", "info",
             evidence=[f"scope: {len(scan_files)} code and config files scanned in the working tree"],
             detail=f"No obvious hardcoded secret patterns in {len(scan_files)} tracked + untracked "
-            "code/config files (pattern-based scan of the working tree only — not git "
+            "code/config files (pattern-based scan of the working tree only, not git "
             "history; not a substitute for gitleaks/truffleHog).",
             best_practice_ref=ref,
         ))
@@ -259,7 +265,7 @@ def check_secrets_management(repo: Repo) -> list[CheckResult]:
         "No clear separation between dev/staging/production configuration was found.",
         "" if platform_env_mgmt else "Confirm staging and production use distinct "
         "secrets/config (not just different .env values on the same box), managed "
-        "via your deploy platform's environment dashboard or a secrets manager — "
+        "via your deploy platform's environment dashboard or a secrets manager, "
         "never share production credentials with lower environments.",
         best_practice_ref=ref,
     ))
@@ -347,7 +353,7 @@ def check_resilience_and_runbooks(repo: Repo) -> list[CheckResult]:
         "pass" if migration_dirs else "warn",
         "info" if migration_dirs else "low",
         f"Found {len(migration_dirs)} migration/schema file(s)." if migration_dirs else
-        "No formal migration tooling detected — schema changes may be applied ad hoc.",
+        "No formal migration tooling detected, schema changes may be applied ad hoc.",
         "" if migration_dirs else "Adopt versioned, reversible schema migrations "
         "so production database changes are repeatable and auditable, and can be "
         "rolled back if a deploy fails.",
@@ -357,7 +363,7 @@ def check_resilience_and_runbooks(repo: Repo) -> list[CheckResult]:
     cron_files = repo.find_any(["**/crons.*", "**/cron/*", "**/*scheduled*"])
     if cron_files:
         # Registration-only files (e.g. Convex's crons.ts) wire a schedule to a
-        # target function but don't contain the job logic itself — checking
+        # target function but don't contain the job logic itself, checking
         # THEM for try/catch is a false signal. Split into "registrars" vs
         # files that likely hold real job logic, and only apply the
         # error-handling heuristic to the latter.
@@ -380,13 +386,13 @@ def check_resilience_and_runbooks(repo: Repo) -> list[CheckResult]:
                 "Scheduled job code includes try/catch or exception handling." if has_error_handling
                 else f"Scheduled job file(s) found ({', '.join(logic_files)}) with no visible error handling.",
                 "" if has_error_handling else "Wrap scheduled/cron job logic in error "
-                "handling with alerting on failure — a silently-failing cron job is a "
+                "handling with alerting on failure, a silently-failing cron job is a "
                 "common source of undetected production data drift.",
                 evidence=logic_files,
                 best_practice_ref=ref,
             ))
         elif registrar_files:
-            # Only a registrar was found — the actual job implementations live in
+            # Only a registrar was found, the actual job implementations live in
             # the functions it references. Flag as informational, not a failure,
             # but point the auditor at the files to check by hand.
             results.append(CheckResult(
@@ -397,7 +403,7 @@ def check_resilience_and_runbooks(repo: Repo) -> list[CheckResult]:
                 "cannot statically resolve those target functions, so error handling in "
                 "the actual job logic was not verified automatically.",
                 "Manually confirm each scheduled job function wraps its logic in "
-                "try/catch (or equivalent) with failure alerting — a silently-failing "
+                "try/catch (or equivalent) with failure alerting, a silently-failing "
                 "cron job is a common source of undetected production data drift.",
                 evidence=registrar_files,
                 best_practice_ref=ref,
@@ -417,7 +423,7 @@ def check_multi_surface_deployment(repo: Repo, fp: StackFingerprint) -> list[Che
     more than one independently-rollback-able surface (e.g. a frontend host +
     a backend/BaaS, or a docker-compose stack with its own migration step),
     rolling back only one surface can silently desync the system. This used
-    to be a single generic bullet inside Resilience & Failover — split out
+    to be a single generic bullet inside Resilience & Failover, split out
     because it's a distinct failure mode with its own severity, not a
     sub-case of "no rollback docs".
     """
@@ -431,7 +437,7 @@ def check_multi_surface_deployment(repo: Repo, fp: StackFingerprint) -> list[Che
             "pass", "info",
             "Single deploy surface detected " +
             (f"({', '.join(fp.deploy_surfaces)}). " if fp.deploy_surfaces else "(no deploy platform config found). ") +
-            "Standard rollback documentation (see Resilience & Failover) is sufficient — "
+            "Standard rollback documentation (see Resilience & Failover) is sufficient, "
             "there is no second surface that can drift out of sync.",
             evidence=([f"deploy surface: {x}" for x in fp.deploy_surfaces]
                       or ["scope: no deploy platform config found in the repo"]),
@@ -473,7 +479,7 @@ def check_multi_surface_deployment(repo: Repo, fp: StackFingerprint) -> list[Che
             best_practice_ref=ref,
         ))
 
-    # Irreversible-migration safety is checked regardless of multi-surface status —
+    # Irreversible-migration safety is checked regardless of multi-surface status,
     # a single-surface app can still lose data permanently from a destructive migration
     # that a code rollback cannot undo.
     migration_paths = repo.find_any([
@@ -496,10 +502,10 @@ def check_multi_surface_deployment(repo: Repo, fp: StackFingerprint) -> list[Che
             f"{len(destructive_hits)} migration file(s) contain destructive operations "
             f"(DROP/TRUNCATE/DELETE) that cannot be undone by redeploying an older app version: "
             f"{', '.join(destructive_hits[:5])}." if destructive_hits else
-            f"Scanned {len(migration_paths)} migration file(s) — no destructive SQL patterns detected.",
+            f"Scanned {len(migration_paths)} migration file(s), no destructive SQL patterns detected.",
             "" if not destructive_hits else "For each destructive migration, confirm a tested backup "
             "exists from immediately before it ran, and document the actual recovery step (restore from "
-            "backup — not 'redeploy old code', which does not undo a schema/data change already applied).",
+            "backup, not 'redeploy old code', which does not undo a schema/data change already applied).",
             evidence=destructive_hits,
             best_practice_ref=ref,
         ))

@@ -1,5 +1,33 @@
 # Changelog
 
+## 3.4.0
+
+An audit of the auditor. A deliberately hollow repo, every control a costume, scored 78 out of 100 with nine passing checks, five of them false. Fixing that exposed more.
+
+**Confidence now follows evidence, structurally.**
+- A pass with an empty evidence list can no longer claim to be `verified`. The downgrade is automatic, so the hand-maintained `WEAK_PASS_IDS` set no longer has to be remembered when a check is added.
+- Checks that always had real evidence now carry it: `log-1` and `log-2` cite the matched dependency, `dep-1` the lockfile, `ci-6` the script, `res-2` the matching line. `sec-3`, `sec-4` and `ms-1` cite the scope they searched, which is the honest evidence for a proof of absence.
+
+**Existence is not function.** Six checks passed on controls that existed in name only.
+- `ci-2` (critical) was satisfied by a CI step of `echo "test skipped"`. It now requires a real test-runner invocation, with string literals stripped first.
+- `ci-6` was satisfied by a `test` script of `echo "no tests yet" && exit 0`.
+- `res-1` was satisfied by an empty `runbook.md`. It now requires 50 words of prose.
+- `res-2` was satisfied by an unchecked `- [ ] figure out rollback` TODO box.
+- `ms-2` was a bag-of-words test marked verified; it is now labelled a text match.
+- `log-1`/`log-2` matched substrings of a serialized dependency blob, so `@types/pino` scored a verified pass. They now match package names, excluding type stubs.
+
+**Security: the waiver file is untrusted input.** `.prod-audit-waivers.json` lives in the audited repo, and its text was written into the Markdown report unescaped. A crafted `reason` field forged a second `## Repository Controls Score: 100/100` heading in the report. Waiver text is now flattened to a single length-capped line with pipes escaped and leading markup stripped, at the point it is loaded rather than at each render site.
+
+**The generated documents are now linted.** `scripts/check_report.py` checks a finished audit against the JSON it was written from: a quoted file path must appear in the scan, a `weak` pass must not be written up as a win, every `critical` must be addressed in the fix brief, a waived finding must stay visible, no placeholders, no em dashes. The skill runs it before sharing. Run against real generated documents that had already been reviewed by hand, it found six problems.
+
+**Refactor.** `prod_audit.py` was 1836 lines, more than twice this project's own 800-line ceiling, with three hand-maintained tables far from the checks they described. It is now an `audit/` package of eight modules, largest 503 lines, plus a thin entry point that re-exports the public names so every documented command and import keeps working. 77 unused imports removed.
+
+**House style.** Em dashes are gone from every generated string, so the report linter no longer rejects the documents this toolkit produces.
+
+Tests: 59, up from 37.
+
+Known and not yet fixed: `claude plugin eval` is in early access and could not be run, so the five prompt-only skills still have no automated coverage. Each was tested once by hand against a real repository; the findings are tracked for 3.5.0.
+
 ## 3.3.0
 
 Two verified defects in how the coach treats evidence, and the trap they created in the fix brief.

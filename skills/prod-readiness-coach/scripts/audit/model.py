@@ -1,10 +1,8 @@
 """Findings, categories, waivers, contradictions, and the substance helpers."""
-import fnmatch
 import json
 import re
-import subprocess
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -46,7 +44,7 @@ class CheckResult:
 
 
 # Checks whose pass is based on a text search, not a structural check.
-WEAK_PASS_IDS = {"log-4", "res-3", "sec-4"}
+WEAK_PASS_IDS = {"log-4", "res-3", "sec-4", "ms-2"}
 
 # A control can live outside the repository (an org-level pipeline, a platform
 # dashboard, a secrets vault). Without a way to say so, --fail-on can never
@@ -135,8 +133,18 @@ def load_waivers(repo: "Repo") -> tuple[dict, list[str]]:
             problems.append(f"Waiver for {w['id']} expired ({age} days old, limit "
                             f"{WAIVER_MAX_AGE_DAYS}). The finding is back. Re-confirm it or fix it.")
             continue
-        good[str(w["id"]).strip()] = w
+        # The waiver file lives in the audited repo, so its text is untrusted input.
+        # Flatten it to one safe line: no newlines to break out of the table, no
+        # pipes to forge columns, no leading # to forge a heading, and a length cap.
+        good[str(w["id"]).strip()] = {k: _one_safe_line(w[k]) for k in WAIVER_FIELDS}
     return good, problems
+
+
+def _one_safe_line(value, limit: int = 300) -> str:
+    """Collapse untrusted repo text to a single table-safe cell."""
+    text = " ".join(str(value).split())
+    text = text.replace("|", "\\|").lstrip("#>*-= ")
+    return text[:limit] + ("..." if len(text) > limit else "")
 
 
 def find_contradictions(categories: list["Category"]) -> list[dict]:

@@ -3,8 +3,8 @@ import fnmatch
 import json
 import re
 import subprocess
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -39,7 +39,7 @@ class Repo:
         return (self.root / ".git").exists()
 
     def git_files(self) -> list[str]:
-        """Files tracked by git (preferred — respects .gitignore automatically)."""
+        """Files tracked by git (preferred, respects .gitignore automatically)."""
         if self._git_files is not None:
             return self._git_files
         if self.is_git_repo():

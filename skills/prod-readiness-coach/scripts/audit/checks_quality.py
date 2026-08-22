@@ -1,10 +1,8 @@
 """Checks about tests and dependencies."""
-import fnmatch
 import json
 import re
-import subprocess
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -24,7 +22,7 @@ def check_testing_quality_gates(repo: Repo) -> list[CheckResult]:
         "info" if test_files else "critical",
         f"Found {len(test_files)} test file(s)." if test_files else
         "No test files found anywhere in the repository.",
-        "" if test_files else "Add automated tests before production release — "
+        "" if test_files else "Add automated tests before production release, "
         "at minimum, cover critical business logic, payment/billing paths, and "
         "auth flows. Zero test coverage is a direct release blocker.",
         evidence=test_files[:10],
@@ -94,7 +92,7 @@ def check_dependency_security(repo: Repo) -> list[CheckResult]:
         "info" if lockfile else "high",
         f"Found lockfile: {lockfile}." if lockfile else "No dependency lockfile found.",
         "" if lockfile else "Commit a lockfile so builds are reproducible across "
-        "environments — without one, production can silently pull different "
+        "environments, without one, production can silently pull different "
         "dependency versions than what was tested.",
         evidence=[lockfile] if lockfile else [],
         best_practice_ref=ref,

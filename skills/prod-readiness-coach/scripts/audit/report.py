@@ -1,10 +1,6 @@
 """Turn findings into a Markdown report and a JSON document."""
-import fnmatch
-import json
-import re
-import subprocess
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -27,16 +23,16 @@ def grade_for(score: int, critical_count: int = 0) -> str:
     # A category average can hide a release blocker. Any critical fail caps
     # the grade at D regardless of the numeric score.
     if critical_count > 0:
-        return "D — Release blockers present" if score >= 40 else "F — Release blockers, little else in place"
+        return "D, release blockers present" if score >= 40 else "F, release blockers and little else in place"
     if score >= 90:
-        return "A — Strong evidence of controls"
+        return "A, strong evidence of controls"
     if score >= 75:
-        return "B — Minor gaps"
+        return "B, minor gaps"
     if score >= 60:
-        return "C — Notable gaps"
+        return "C, notable gaps"
     if score >= 40:
-        return "D — Major gaps"
-    return "F — Few controls found"
+        return "D, major gaps"
+    return "F, few controls found"
 
 
 def render_markdown(categories: list[Category], repo_name: str, fp: Optional[StackFingerprint] = None,
@@ -49,7 +45,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
     high = [c for c in all_checks if c.status == "fail" and c.severity == "high"]
 
     lines = []
-    lines.append(f"# Production Readiness Audit — {repo_name}")
+    lines.append(f"# Production Readiness Audit, {repo_name}")
     lines.append("")
     lines.append(f"_Generated {now} by prod_audit.py_")
     lines.append("")
@@ -59,7 +55,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         lines.append("")
         lines.append(
             "This section is produced by deterministic static analysis (manifests, lockfiles, deploy "
-            "configs) — re-running against the same commit always yields the same result. It drives "
+            "configs), re-running against the same commit always yields the same result. It drives "
             "which stack-specific reference material gets applied on top of this report."
         )
         lines.append("")
@@ -69,7 +65,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         lines.append(f"- **Deploy surface(s):** {', '.join(fp.deploy_surfaces) or '_none detected_'}")
         lines.append(f"- **Runtime(s):** {', '.join(fp.runtimes) or '_none detected_'}")
         lines.append(f"- **Migration tooling:** {', '.join(fp.migration_tooling) or '_none detected_'}")
-        lines.append(f"- **Multi-surface deployment:** {'YES — see Multi-Surface category below' if fp.multi_surface else 'No'}")
+        lines.append(f"- **Multi-surface deployment:** {'YES, see Multi-Surface category below' if fp.multi_surface else 'No'}")
         if fp.adapters_matched:
             lines.append(
                 f"- **Stack adapter reference(s) to apply:** {', '.join(fp.adapters_matched)} "
@@ -85,7 +81,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         )
         lines.append("")
         lines.append(
-            "_This does not change the deterministic severity scores below — it's used to reprioritize "
+            "_This does not change the deterministic severity scores below, it's used to reprioritize "
             "which findings matter most when this report is translated into a fix plan (e.g. a 'medium' "
             "backups finding is functionally critical for an app holding irreplaceable user data)._"
         )
@@ -95,7 +91,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         lines.append(f"**Profile:** `{fp.profile}` ({fp.profile_source}). Checks that do not apply to this "
                      "profile are marked n/a and left out of the score. Wrong profile? Re-run with `--profile`.")
         lines.append("")
-    lines.append(f"## Repository Controls Score: {score}/100 — {grade}")
+    lines.append(f"## Repository Controls Score: {score}/100, {grade}")
     lines.append("")
     lines.append("_This is a static scan of files and config. It measures which production controls "
                  "have evidence in the repo. It does not run the app and cannot prove the product works._")
@@ -104,7 +100,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         lines.append(f"**{len(blocking)} CRITICAL blocking issue(s)** must be resolved before a stable, "
                       f"scalable production release.")
     else:
-        lines.append("No CRITICAL blocking issues detected — review HIGH/MEDIUM findings below before release.")
+        lines.append("No CRITICAL blocking issues detected, review HIGH/MEDIUM findings below before release.")
     lines.append("")
 
     lines.append("| Category | Score | Critical | High | Failing Checks |")
@@ -127,7 +123,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
                      "Resolve these before trusting either result.")
         lines.append("")
         for c in conflicts:
-            lines.append(f"- **{' + '.join(c['ids'])}** — {c['note']}")
+            lines.append(f"- **{' + '.join(c['ids'])}**, {c['note']}")
         lines.append("")
 
     applied = getattr(fp, "waivers_applied", []) if fp is not None else []
@@ -194,7 +190,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         for c in sorted(cat.checks, key=lambda x: SEVERITY_ORDER.get(x.severity, 9)):
             status_icon = {"pass": "✅", "fail": "❌", "warn": "⚠️", "info": "ℹ️", "n/a": "➖", "waived": "🟦"}.get(c.status, "")
             detail = c.detail.replace("|", "\\|")
-            status_text = f"{status_icon} {c.status}" + (" (text match — verify by hand)" if c.confidence == "weak" else "")
+            status_text = f"{status_icon} {c.status}" + (" (text match, verify by hand)" if c.confidence == "weak" else "")
             lines.append(f"| {c.title} | {status_text} | {SEVERITY_LABEL.get(c.severity, c.severity)} | {detail} |")
         # Recommendations for any non-pass checks
         recs = [c for c in cat.checks if c.status != "pass" and c.recommendation]
@@ -209,7 +205,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
     lines.append("")
     lines.append(
         "This tool performs static analysis of the repository working tree "
-        "(via `git ls-files` where available) — no code execution, no network "
+        "(via `git ls-files` where available), no code execution, no network "
         "calls, no dependency installation. Secret detection uses pattern "
         "matching and is not a substitute for a dedicated secret-scanning tool "
         "(e.g. gitleaks/truffleHog) run against full git history. Re-run after "
