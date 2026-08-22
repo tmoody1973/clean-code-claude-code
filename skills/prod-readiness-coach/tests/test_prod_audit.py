@@ -25,6 +25,12 @@ def audit(files: dict[str, str], profile=None) -> dict:
     return prod_audit.render_json(cats, root.name, fp)
 
 
+def audit_markdown(files: dict, profile=None) -> str:
+    root = make_repo(files)
+    cats, fp = prod_audit.run_audit(root, profile)
+    return prod_audit.render_markdown(cats, root.name, fp)
+
+
 class EmptyRepo(unittest.TestCase):
     def test_empty_repo_does_not_crash_and_has_empty_fingerprint(self):
         r = audit({})
@@ -233,6 +239,89 @@ class Monorepo(unittest.TestCase):
         self.assertIn("fly", fp["deploy_surfaces"])
         self.assertIn("vercel", fp["deploy_surfaces"])
         self.assertTrue(fp["multi_surface"])
+
+
+NEXT_APP = {
+    "package.json": json.dumps({"dependencies": {"next": "15.0.0"}, "scripts": {"test": "vitest"}}),
+    "package-lock.json": "{}", "tsconfig.json": "{}", "tests/a.test.ts": "test('x',()=>{})",
+}
+
+
+class Waivers(unittest.TestCase):
+    def waiver(self, **over):
+        w = {"id": "ci-1", "reason": "CI runs in the org-level pipeline, not per repo.",
+             "evidence": "gitlab.example.com/org/pipelines", "approved_by": "A Person",
+             "date": prod_audit.datetime.now(prod_audit.timezone.utc).strftime("%Y-%m-%d")}
+        w.update(over)
+        return json.dumps([w])
+
+    def test_valid_waiver_marks_check_waived_and_unblocks_the_gate(self):
+        r = audit({**NEXT_APP, ".prod-audit-waivers.json": self.waiver()})
+        c = check(r, "ci-1")
+        self.assertEqual(c["status"], "waived")
+        self.assertEqual(c["waived_from"], "fail")
+        self.assertIn("A Person", c["detail"])
+        self.assertNotIn("ci-1", [k["id"] for cat in r["categories"] for k in cat["checks"]
+                                  if k["status"] == "fail" and k["severity"] == "critical"])
+        self.assertEqual(r["waivers"]["problems"], [])
+        self.assertEqual([w["id"] for w in r["waivers"]["applied"]], ["ci-1"])
+
+    def test_waiver_missing_a_field_is_rejected_and_reported(self):
+        r = audit({**NEXT_APP, ".prod-audit-waivers.json": self.waiver(evidence="")})
+        self.assertEqual(check(r, "ci-1")["status"], "fail")
+        self.assertTrue(any("evidence" in p for p in r["waivers"]["problems"]))
+
+    def test_expired_waiver_stops_applying(self):
+        old = (prod_audit.datetime.now(prod_audit.timezone.utc) - prod_audit.timedelta(days=200)).strftime("%Y-%m-%d")
+        r = audit({**NEXT_APP, ".prod-audit-waivers.json": self.waiver(date=old)})
+        self.assertEqual(check(r, "ci-1")["status"], "fail")
+        self.assertTrue(any("expired" in p.lower() for p in r["waivers"]["problems"]))
+
+    def test_waivers_never_hide_the_finding_from_the_report(self):
+        md = audit_markdown({**NEXT_APP, ".prod-audit-waivers.json": self.waiver()})
+        self.assertIn("Waived, with evidence", md)
+        self.assertIn("A Person", md)
+        self.assertIn("org-level pipeline", md)
+
+    def test_a_rejected_waiver_is_shouted_in_the_report(self):
+        md = audit_markdown({**NEXT_APP, ".prod-audit-waivers.json": self.waiver(approved_by="")})
+        self.assertIn("Waivers that were rejected", md)
+
+
+class WeakEvidenceIsNotAWin(unittest.TestCase):
+    def test_category_carrying_only_a_text_match_is_flagged(self):
+        r = audit({"package.json": json.dumps({"dependencies": {"next": "15.0.0", "express": "4.0.0"}}),
+                   "package-lock.json": "{}",
+                   "server.js": "const limiter = { rate_limit: 100 };\n",
+                   "docs/runbook.md": "# runbook\nrollback: redeploy the previous commit.\n"})
+        res = next(c for c in r["categories"] if c["key"] == "Resilience & Failover")
+        self.assertEqual(check(r, "res-3")["confidence"], "weak")
+        self.assertTrue(res["has_weak_evidence"],
+                        "a category whose pass rests on a text match must not read as a clean win")
+
+
+class Contradictions(unittest.TestCase):
+    def test_clean_secret_scan_with_no_gitignore_guard_is_reported_as_conflicting(self):
+        r = audit({"package.json": json.dumps({"dependencies": {"next": "15.0.0"}}), "package-lock.json": "{}"})
+        pairs = [set(c["ids"]) for c in r["contradictions"]]
+        self.assertIn({"sec-4", "sec-2"}, pairs)
+
+    def test_tests_that_nothing_runs_is_reported_as_conflicting(self):
+        r = audit({"package.json": json.dumps({"dependencies": {"next": "15.0.0"}, "scripts": {"test": "vitest"}}),
+                   "package-lock.json": "{}", "tests/a.test.ts": "test('x',()=>{})",
+                   ".github/workflows/ci.yml": "on: push\njobs:\n  b:\n    steps:\n      - run: npm run build\n"})
+        pairs = [set(c["ids"]) for c in r["contradictions"]]
+        self.assertIn({"test-1", "ci-2"}, pairs)
+
+    def test_contradictions_are_printed_in_the_report(self):
+        md = audit_markdown({"package.json": json.dumps({"dependencies": {"next": "15.0.0"}}),
+                             "package-lock.json": "{}"})
+        self.assertIn("Conflicting signals", md)
+
+    def test_no_contradictions_on_a_healthy_repo(self):
+        r = audit({"package.json": json.dumps({"dependencies": {"next": "15.0.0"}}), "package-lock.json": "{}",
+                   ".gitignore": ".env*\n"}, profile="library")
+        self.assertNotIn({"sec-4", "sec-2"}, [set(c["ids"]) for c in r["contradictions"]])
 
 
 class CiDetection(unittest.TestCase):

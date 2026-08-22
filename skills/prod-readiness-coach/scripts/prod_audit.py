@@ -44,7 +44,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -81,10 +81,85 @@ class CheckResult:
     # "weak": a text match only. A weak pass means "possible, verify by hand";
     # it never counts as proof that the control exists.
     confidence: str = "verified"
+    # Set when a repo waiver moved this check out of "fail". Keeps the original status.
+    waived_from: str = ""
 
 
 # Checks whose pass is based on a text search, not a structural check.
 WEAK_PASS_IDS = {"log-4", "res-3", "sec-4"}
+
+# A control can live outside the repository (an org-level pipeline, a platform
+# dashboard, a secrets vault). Without a way to say so, --fail-on can never
+# reach 0 and a phase gate becomes a trap that rewards faking the fix. A waiver
+# is that escape hatch, and it is deliberately expensive: every field is
+# required, it is dated, it expires, and it is printed in every report.
+WAIVER_FILE = ".prod-audit-waivers.json"
+WAIVER_FIELDS = ("id", "reason", "evidence", "approved_by", "date")
+WAIVER_MAX_AGE_DAYS = 180
+
+# Pairs where one check's pass is undermined by another check's failure.
+# (passing ids, failing ids, what the conflict means)
+CONTRADICTIONS = [
+    ({"sec-4"}, {"sec-2"},
+     "The secret scan found nothing, but `.gitignore` does not exclude env files. A real `.env` "
+     "could be committed and never match a pattern. Treat the clean scan as unproven, not as a win."),
+    ({"log-4"}, {"log-1"},
+     "Request or correlation IDs are mentioned, but no logging library is configured. IDs with "
+     "nothing to write them into are a mention, not a control."),
+    ({"test-1"}, {"ci-2"},
+     "Test files exist but no pipeline step runs them. Tests nobody runs are documentation."),
+    ({"res-2"}, {"ms-1"},
+     "A rollback procedure is documented, but this repo deploys to more than one surface and no "
+     "coordinated procedure covering all of them was found. The documented rollback may undo only part."),
+]
+
+
+def load_waivers(repo: "Repo") -> tuple[dict, list[str]]:
+    """Return ({check_id: waiver}, [problems]). A bad waiver is reported, never silently ignored."""
+    raw = repo.read(WAIVER_FILE)
+    if not raw.strip():
+        return {}, []
+    try:
+        entries = json.loads(raw)
+    except Exception as e:
+        return {}, [f"{WAIVER_FILE} is not valid JSON ({e}). No waivers applied."]
+    if not isinstance(entries, list):
+        return {}, [f"{WAIVER_FILE} must be a list of waiver objects. No waivers applied."]
+    good, problems, now = {}, [], datetime.now(timezone.utc)
+    for i, w in enumerate(entries):
+        if not isinstance(w, dict):
+            problems.append(f"{WAIVER_FILE}[{i}] is not an object; skipped.")
+            continue
+        missing = [f for f in WAIVER_FIELDS if not str(w.get(f, "")).strip()]
+        if missing:
+            problems.append(f"{WAIVER_FILE}[{i}] ({w.get('id', 'no id')}) is missing "
+                            f"{', '.join(missing)}; skipped. Every field is required.")
+            continue
+        try:
+            when = datetime.strptime(str(w["date"]).strip(), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            problems.append(f"{WAIVER_FILE}[{i}] ({w['id']}) has date '{w['date']}'; "
+                            "use YYYY-MM-DD. Skipped.")
+            continue
+        age = (now - when).days
+        if age > WAIVER_MAX_AGE_DAYS:
+            problems.append(f"Waiver for {w['id']} expired ({age} days old, limit "
+                            f"{WAIVER_MAX_AGE_DAYS}). The finding is back. Re-confirm it or fix it.")
+            continue
+        good[str(w["id"]).strip()] = w
+    return good, problems
+
+
+def find_contradictions(categories: list["Category"]) -> list[dict]:
+    """Where a pass and a fail disagree about the same control, say so."""
+    by_id = {c.id: c for cat in categories for c in cat.checks}
+    out = []
+    for passing, failing, note in CONTRADICTIONS:
+        if all(by_id.get(i) and by_id[i].status == "pass" for i in passing) \
+                and all(by_id.get(i) and by_id[i].status == "fail" for i in failing):
+            out.append({"ids": sorted(passing | failing), "passing": sorted(passing),
+                        "failing": sorted(failing), "note": note})
+    return out
 
 # What kind of thing the repo is. A check that does not apply to the profile
 # is reported as "n/a" and left out of the score. A framework or deploy
@@ -121,6 +196,11 @@ class Category:
             if c.status == "fail":
                 score -= SEVERITY_PENALTY.get(c.severity, 5)
         return max(0, score)
+
+    @property
+    def has_weak_evidence(self) -> bool:
+        """True when any pass here rests only on a text match, so this is not a clean win."""
+        return any(c.status == "pass" and c.confidence == "weak" for c in self.checks)
 
     @property
     def applicable(self) -> bool:
@@ -311,6 +391,8 @@ class StackFingerprint:
     deploy_evidence: dict[str, list[str]] = field(default_factory=dict)
     runtimes: list[str] = field(default_factory=list)
     migration_tooling: list[str] = field(default_factory=list)
+    waivers_applied: list = field(default_factory=list)
+    waiver_problems: list = field(default_factory=list)
     profile: str = "web-app"
     profile_source: str = "default"  # "given" | "guessed" | "default"
     multi_surface: bool = False
@@ -1356,6 +1438,9 @@ def run_audit(repo_path: Path, profile: Optional[str] = None) -> tuple[list[Cate
     else:
         fingerprint.profile, fingerprint.profile_source = guess_profile(repo, fingerprint), "guessed"
     skips = CHECK_SKIPS_BY_PROFILE[fingerprint.profile]
+    waivers, waiver_problems = load_waivers(repo)
+    fingerprint.waivers_applied = [{k: w[k] for k in WAIVER_FIELDS} for w in waivers.values()]
+    fingerprint.waiver_problems = waiver_problems
     categories = {key: Category(key, title, desc, ref) for key, title, desc, ref in CATEGORY_META}
 
     categories["AI Agent Context"].checks.append(check_claude_md(repo))
@@ -1373,6 +1458,13 @@ def run_audit(repo_path: Path, profile: Optional[str] = None) -> tuple[list[Cate
         for c in cat.checks:
             if c.id in WEAK_PASS_IDS and c.status == "pass":
                 c.confidence = "weak"
+            w = waivers.get(c.id)
+            if w and c.status == "fail":
+                c.waived_from = c.status
+                c.status, c.confidence = "waived", "verified"
+                c.detail = (f"Waived {w['date']} by {w['approved_by']}: {w['reason']} "
+                            f"Evidence: {w['evidence']} Original finding: {c.detail}")
+                c.recommendation = ""
             if c.id in skips:
                 c.status, c.severity = "n/a", "info"
                 why = ("Project type not determined; insufficient evidence to apply this check. Re-run with --profile."
@@ -1485,8 +1577,44 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         crit = sum(1 for c in fails if c.severity == "critical")
         hi = sum(1 for c in fails if c.severity == "high")
         score_cell = f"{cat.score}/100" if cat.applicable else "N/A"
+        if cat.has_weak_evidence:
+            score_cell += " (text match only)"
         lines.append(f"| {cat.title} | {score_cell} | {crit} | {hi} | {len(fails)} |")
     lines.append("")
+
+    conflicts = find_contradictions(categories)
+    if conflicts:
+        lines.append("## Conflicting signals")
+        lines.append("")
+        lines.append("One check passed while another failed in a way that undercuts it. "
+                     "Resolve these before trusting either result.")
+        lines.append("")
+        for c in conflicts:
+            lines.append(f"- **{' + '.join(c['ids'])}** — {c['note']}")
+        lines.append("")
+
+    applied = getattr(fp, "waivers_applied", []) if fp is not None else []
+    problems = getattr(fp, "waiver_problems", []) if fp is not None else []
+    if applied:
+        lines.append("## Waived, with evidence")
+        lines.append("")
+        lines.append(f"These findings are real but were accepted by a human in `{WAIVER_FILE}`. "
+                     f"They do not count toward the score or the exit code. Waivers expire after "
+                     f"{WAIVER_MAX_AGE_DAYS} days.")
+        lines.append("")
+        lines.append("| Check | Reason | Evidence | Approved by | Date |")
+        lines.append("|---|---|---|---|---|")
+        for w in applied:
+            lines.append(f"| `{w['id']}` | {w['reason']} | {w['evidence']} | {w['approved_by']} | {w['date']} |")
+        lines.append("")
+    if problems:
+        lines.append("## Waivers that were rejected")
+        lines.append("")
+        lines.append("These entries did not apply, so their findings still count:")
+        lines.append("")
+        for _p in problems:
+            lines.append(f"- {_p}")
+        lines.append("")
 
     if blocking:
         lines.append("## 🔴 Release Blockers (Critical)")
@@ -1527,7 +1655,7 @@ def render_markdown(categories: list[Category], repo_name: str, fp: Optional[Sta
         lines.append("| Check | Status | Severity | Detail |")
         lines.append("|---|---|---|---|")
         for c in sorted(cat.checks, key=lambda x: SEVERITY_ORDER.get(x.severity, 9)):
-            status_icon = {"pass": "✅", "fail": "❌", "warn": "⚠️", "info": "ℹ️", "n/a": "➖"}.get(c.status, "")
+            status_icon = {"pass": "✅", "fail": "❌", "warn": "⚠️", "info": "ℹ️", "n/a": "➖", "waived": "🟦"}.get(c.status, "")
             detail = c.detail.replace("|", "\\|")
             status_text = f"{status_icon} {c.status}" + (" (text match — verify by hand)" if c.confidence == "weak" else "")
             lines.append(f"| {c.title} | {status_text} | {SEVERITY_LABEL.get(c.severity, c.severity)} | {detail} |")
@@ -1572,12 +1700,16 @@ def render_json(categories: list[Category], repo_name: str, fp: Optional[StackFi
         "grade": grade_for(overall_score(categories), sum(c.blocking_count for c in categories)),
         "stack_fingerprint": asdict(fp) if fp is not None else None,
         "product_context": product_context or None,
+        "waivers": {"applied": getattr(fp, "waivers_applied", []) if fp else [],
+                    "problems": getattr(fp, "waiver_problems", []) if fp else []},
+        "contradictions": find_contradictions(categories),
         "categories": [
             {
                 "key": cat.key,
                 "title": cat.title,
                 "score": cat.score if cat.applicable else None,
                 "applicable": cat.applicable,
+                "has_weak_evidence": cat.has_weak_evidence,
                 "checks": [asdict(c) for c in cat.checks],
             }
             for cat in categories

@@ -26,12 +26,30 @@ turn a small bug into a multi-hour mystery."}}
 
 ## What's already solid ✅
 
-{{For every category with `applicable: true` that scored 90+ with no
-failing checks, one bullet each, named warmly. A category whose checks
+{{For every category with `applicable: true` and `has_weak_evidence: false`
+that scored 90+ with no failing checks, one bullet each, named warmly.
+A category with `has_weak_evidence: true` never belongs here no matter
+what it scored; it goes in the "Looks fine, but only from a text match"
+list below instead. A category whose checks
 are all `n/a` has `score: null`; it is neither a win nor a gap, so leave
 it out. E.g. "**Your secrets are safe.** You're not
 accidentally leaking passwords or API keys into your code — a mistake even
 experienced teams make. Nice work."}}
+
+## Looks fine, but only from a text match
+
+{{One bullet for each category with `has_weak_evidence: true`, naming the
+check and what would prove it. E.g. "**Rate limiting.** The tool found the
+words `rate_limit` in `server.js`, which is a hint, not proof. Open that
+file: if it is a config value nothing reads, this control does not exist."
+Skip this section entirely if no category has weak evidence.}}
+
+## Conflicting signals
+
+{{One bullet per entry in the JSON `contradictions` array, in plain
+English, saying which pass is undercut and by what. Put this BEFORE the
+ranked gaps: a reader needs to know which "wins" are not real before they
+read the list of losses. Skip the section if the array is empty.}}
 
 ## What needs attention, ranked by urgency
 
@@ -137,7 +155,12 @@ outcome, not a task. E.g. "- [ ] `python3 prod_audit.py --repo . --json
 **Gate — do not proceed to Phase {{n+1}} until:**
 1. Every checkbox above is true.
 2. You've re-run: `python3 prod_audit.py --repo . --fail-on critical` (or
-   `--fail-on high` for a Phase 2 gate) and it exits 0.
+   `--fail-on high` for a Phase 2 gate) and it exits 0 — **or** every
+   finding still failing at that severity is one whose control genuinely
+   lives outside this repo, and the human has added a waiver for it in
+   `.prod-audit-waivers.json`. If you cannot reach 0 and cannot honestly
+   waive, stop and say so. Do not add a file whose only purpose is to
+   satisfy the scan.
 3. Anything on the separate "Manual steps for a human" list tied to this
    phase (see below) has been done or explicitly deferred with the
    human's sign-off — an AI agent should not silently skip these and

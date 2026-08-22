@@ -62,6 +62,22 @@ You built it by vibe. You shipped it like someone who knows what they are doing.
 3. **Do not let AI clean up code you have not read.** A rename or a "simpler" condition can quietly change behavior.
 4. **"I don't know" is a fine answer.** A handoff that lists unknowns is safer than confident documentation the AI made up.
 
+## When a control lives outside the repo
+
+Some real controls are invisible to a file scan: CI that runs in an org-level pipeline, error tracking switched on in a platform dashboard, secrets kept in a vault. Without a way to say so, the fix list becomes a trap. The audit can never reach zero, and the tempting move is to add a file whose only job is to satisfy the scan.
+
+So the audit takes waivers. Add `.prod-audit-waivers.json` to your repo:
+
+```json
+[{"id": "ci-1",
+  "reason": "CI runs in the org-level pipeline, not per repo.",
+  "evidence": "gitlab.example.com/org/platform/pipelines",
+  "approved_by": "Your Name",
+  "date": "2026-08-22"}]
+```
+
+Every field is required. A waived check stops counting toward the score and the exit code, but it appears in every report with its reason, its evidence, and the name of the person who accepted it. Waivers expire after 180 days, and then the finding comes back. Claude will never write this file for you. It shows you the entry and you decide.
+
 ## The two readiness tools, and when to use which
 
 Both ask "is it ready?" They answer different halves.

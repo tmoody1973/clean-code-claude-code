@@ -123,12 +123,31 @@ or library. Then re-run with `--profile`. Top-level fields that matter:
   `evidence` (file paths/line snippets), `best_practice_ref` (a
   citation URL), and `confidence` (`verified` or `weak`). A `weak` pass
   means the tool only found matching text — write it up as "looks like
-  this may exist; confirm by hand," never as a confirmed win.
+  this may exist; confirm by hand," never as a confirmed win. Each
+  category also has `has_weak_evidence`: when true, that category is not
+  a clean win no matter how high it scored.
+- `contradictions` — pairs where one check passed while another failed in
+  a way that undercuts it (a clean secret scan with no `.gitignore` guard;
+  tests that no pipeline runs). **Write these up before the phases**, in
+  their own short section, because a phase plan built on a pass that is
+  not real wastes the whole phase.
+- `waivers` → `applied` and `problems`. A waiver is a human's written,
+  dated acceptance of a real finding whose control lives outside the repo
+  (an org-level pipeline, a platform dashboard, a vault). Waived checks
+  have `status: "waived"` and `waived_from`, and they stop counting toward
+  the score and the exit code. `problems` lists waivers that were rejected
+  (missing a field, bad date, expired) — those findings still count.
 
 Treat this JSON as the authoritative record of **what the scanner
 observed**, not as final truth. The scanner is pattern-based static
 analysis. Rules:
 - Never invent a finding that isn't in the JSON.
+- **Never write or edit `.prod-audit-waivers.json` yourself.** A waiver
+  carries a person's name and their acceptance of a real risk. If a
+  critical finding cannot be fixed inside the repo because the control
+  lives elsewhere, put it on the manual-steps list, show the user the
+  exact waiver entry to add, and let them add it. An agent that waives its
+  own blockers has learned to game the scan, which is worse than the gap.
 - Verify every `critical` and `high` finding that surprises you by reading
   the actual files before writing it up. Monitoring configured outside the
   repo, an org-level CI pipeline, or an unusual layout can all produce a
