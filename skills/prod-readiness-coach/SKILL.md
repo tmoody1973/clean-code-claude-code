@@ -259,6 +259,25 @@ severity before starting the next phase"). Substance rules:
 
 ### 8. Review both documents before sharing
 
+**Run the linter first.** It checks the rules below mechanically, so you
+only have to think about the ones it cannot:
+
+```bash
+python3 <skill-folder>/scripts/check_report.py \
+  AUDIT_PLAIN_ENGLISH.md FIX_BRIEF_FOR_CLAUDE_CODE.md --json <the audit json>
+```
+
+It fails if a quoted file path never appeared in the scan, if a `weak`
+pass is written up as a win, if a `critical` finding is missing from the
+brief, if a waived finding was quietly dropped, or if a placeholder or an
+em dash survived. Fix everything it reports before sharing. If you
+verified a path by hand rather than from the scan, say so in the sentence
+that uses it, which is the rule in step 7 and what the linter is asking
+you to make explicit.
+
+Then check by eye what it cannot:
+
+
 - Scan for any leftover jargon that isn't immediately explained — if you
   used a technical term, either the glossary already covers it or you
   need to add a one-clause explanation inline.
