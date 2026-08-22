@@ -86,7 +86,7 @@ It reads files, so it can tell you a control is missing or that a guard lets eve
 
 Both ask "is it ready?" They answer different halves.
 
-- **`prod-readiness-coach`** runs a script. Same repo, same findings every time. It checks the plumbing: automatic tests, error alerts, secrets, undo plans, and whether a rollback on one platform leaves another out of sync. Run it first, the day you go live, and again before any launch.
+- **`prod-readiness-coach`** runs a script. Same repo, same findings every time. It checks the plumbing: automatic tests, error alerts, secrets, undo plans, and whether a rollback on one platform leaves another out of sync. The checks that read your repository work in any language. The checks that need to know your stack are strongest on Node and Next.js, good on Python, and tell you plainly when they have no rules for your language instead of guessing. Run it first, the day you go live, and again before any launch.
 - **`product-readiness-review`** is Claude's judgment. Does the product do what it says? What would break first for a real person? Run it after the coach, when the plumbing is in.
 
 ## What CI is, if nobody ever told you

@@ -1,5 +1,25 @@
 # Changelog
 
+## 3.5.1
+
+Five defects, and one thing underneath all of them: the engine only really knew Node. Two of these were saying something false about any repository a user ran them on today.
+
+**`auth-2` was wrong about half the time it spoke.** On a live application it reported "18 of 25 request handlers never mention an auth check" as a HIGH finding. At least 14 of the flagged files were authenticated, by three mechanisms a word search could not see: middleware that guards every route not on a public list, webhook routes that verify a cryptographic signature because the caller is a machine and cannot hold a browser session, and routes that compare a shared secret from the environment. The check now recognizes all three. When it finds request middleware it stops asserting the handlers are unguarded and instead reports, at LOW, that they rely on the middleware, naming the file and listing the public route patterns it found so a person can confirm the matcher in about a minute. On the same application the finding is now 9 of 25, and each of the 9 is genuinely middleware-dependent. `auth-3`, which found a real fail-open owner check, is unchanged. See `docs/decisions/006`.
+
+**`package_json()` broke every repository that is not JavaScript.** A monorepo change in 3.2.3 made it always return a dict of empty sections, and that dict is truthy, so all seven `if pkg:` callers thought a manifest existed. A Go project was reported as `languages: ['go', 'javascript']` and told, at HIGH, "package.json exists but does not define a `test` script", about a file that was not there. It now returns nothing when there is no manifest and no workspace members.
+
+**Python and Go fixtures, and the two failures they found immediately.** Every meaningful fixture in the suite was a JavaScript repository, which is why none of the above was caught. Adding a FastAPI service and a Go service surfaced two more on the first run: dependencies declared PEP 621 style in `pyproject.toml`, quoted inside an array, were parsed as nothing, so `fastapi-users` was invisible and the service was told it had no authentication at all. Both call sites now share one dependency-name parser. And a health route declared in code, `@app.get("/health")` or `r.Get("/health", ...)`, which is how every framework except Next.js declares one, was invisible to a check that only globbed file paths. It now reads code declarations too, marked as weak evidence because a path in a string is not proof the route answers.
+
+**Lint and typecheck steps outside Node.** `ci-3` knew `eslint`, `ruff`, `flake8`, `pylint`, `tsc` and `typecheck`. A pipeline running `mypy app` was told it had no lint or typecheck step. Added: `mypy`, `pyright`, `black --check`, `golangci-lint`, `go vet`, `gofmt`, `staticcheck`, `rubocop`, `clippy`, `cargo fmt`, `dotnet format`, `ktlint`, `detekt`, `checkstyle`, `phpstan`, `psalm`, `biome`, `oxlint`, `prettier --check`.
+
+**The "any language" claim is retired.** `SKILL.md` said "It works on any git repo regardless of language/framework." Repository-level checks do. Stack-specific ones are strongest on Node and Next.js, good on Python, and have no rules for Go, Rust, Ruby, Java, PHP or C#. Both `SKILL.md` and `README.md` now say which is which and name the four specific gaps. This toolkit's whole thesis is that a tool must not overstate what it checked; that sentence was the tool overstating where it looked. See `docs/decisions/007`.
+
+**The two readiness skills are distinguishable at a glance.** Both descriptions used to open with audit and production-readiness language, and a tester reported that Claude could not reliably choose between them. They now open with the actual split: `prod-readiness-coach` scans repository controls and scripts, `product-readiness-review` judges user journeys and product behavior. The coach's description also lists Access Control, which has been one of its nine categories since 3.5.0 and was missing from the list.
+
+**Tests now have to prove a check stays quiet.** Every one of the 68 existing tests asked only "does this check fire". None asked "does it stay silent when it should", which is precisely the hole `auth-2` fell through. Borrowed from KICS, which refuses a rule that ships without a negative fixture, and from Checkov, which requires both a passing and a failing case. `auth-2` now has four silence tests: middleware-protected, signature-verified, shared-secret, and correctly-fired.
+
+Tests: 86.
+
 ## 3.5.0
 
 3.4.0 made the engine honest about what it found. This release is about what it was never looking at, and about the toolkit holding together as one thing.

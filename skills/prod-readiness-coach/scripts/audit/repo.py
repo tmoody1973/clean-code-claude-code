@@ -154,10 +154,17 @@ class Repo:
         if self._pkg_cache is not None:
             return self._pkg_cache
         root = self._read_json("package.json")
+        members = self.workspace_package_files()
+        # No manifest means no manifest. Returning a dict of empty sections here
+        # would be truthy, and seven callers branch on `if pkg:`, so a Go or
+        # Python repo would be told its package.json is missing a test script.
+        if not root and not members:
+            self._pkg_cache = {}
+            return self._pkg_cache
         merged = dict(root)
         for key in ("dependencies", "devDependencies", "scripts"):
             merged[key] = dict(root.get(key, {}))
-        for f in self.workspace_package_files():
+        for f in members:
             member = self._read_json(f)
             for key in ("dependencies", "devDependencies"):
                 merged[key] = {**member.get(key, {}), **merged[key]}
@@ -165,6 +172,24 @@ class Repo:
                 merged["scripts"].setdefault(name, cmd)
         self._pkg_cache = merged
         return merged
+
+    def requirement_names(self) -> set[str]:
+        """Lower-cased Python dependency names from any manifest style.
+
+        requirements.txt lists them bare (`fastapi-users>=13`), pyproject.toml
+        lists them quoted inside an array (`  "fastapi-users",`). Stripping the
+        array punctuation first is what makes the second style readable; without
+        it a PEP 621 project looked like it had no dependencies at all.
+        """
+        names = set()
+        for line in self.requirements_text().splitlines():
+            token = line.strip().strip("[](),'\"").strip()
+            if not token or token.startswith("#"):
+                continue
+            name = re.split(r"[=<>!~\[;,'\"() ]", token, maxsplit=1)[0].strip().lower()
+            if name:
+                names.add(name)
+        return names
 
     def requirements_text(self) -> str:
         parts = []
