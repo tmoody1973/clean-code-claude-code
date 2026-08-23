@@ -17,6 +17,8 @@ from pathlib import Path
 
 PATH_RX = re.compile(r"`([\w./-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rb|java|kt|rs|php|cs|json|ya?ml|toml|md|sh|tf|lock))`")
 PLACEHOLDER_RX = re.compile(r"\{\{[^}]+\}\}")
+SCORE_RX = re.compile(r"\b(\d{1,3})\s*/\s*100\b")
+GRADE_RX = re.compile(r"\bgrade\s+([A-F])\b", re.IGNORECASE)
 DASHES = ("—", "–")
 WINS_HEADINGS = ("what's already solid", "whats already solid", "what is already solid")
 
@@ -58,18 +60,52 @@ def lint(audit_md: str, brief_md: str, report: dict) -> list[str]:
                 problems.append(f"audit: {cid} is a text match, not proof, but reads as a win. "
                                 "Move it to the text-match section.")
 
-    # 3. Every critical finding has to show up in the fix brief.
+    # 3. Every critical and high finding has to show up in the fix brief.
+    #    The template says Phase 1 is all criticals and Phase 2 is all highs, so a
+    #    missing high is the same defect one severity down. This is also the check
+    #    that catches suppression: everything the model reads about a repository
+    #    comes from that repository, and a repository can ask for a finding to be
+    #    left out. Invention was linted from the start. Omission was not.
     for cid, k in checks.items():
-        if k["status"] == "fail" and k["severity"] == "critical":
+        if k["status"] == "fail" and k["severity"] in ("critical", "high"):
             words = [w for w in re.split(r"\W+", k["title"].lower()) if len(w) > 4][:2]
+            if cid in brief_md.lower():
+                continue
             if words and not all(w in brief_md.lower() for w in words):
-                problems.append(f"brief: critical finding {cid} ({k['title']}) is not addressed.")
+                problems.append(f"brief: {k['severity']} finding {cid} ({k['title']}) is not "
+                                "addressed. Every critical and high finding has to appear.")
 
     # 4. Waived findings must stay visible.
     for w in report.get("waivers", {}).get("applied", []):
         if w["id"] not in both:
             problems.append(f"audit/brief: waived finding {w['id']} is not mentioned. "
                             "A waiver is an accepted risk, not a deleted one.")
+
+    # 8. A score or a grade in the document has to be one the JSON produced.
+    #    "Report 100/100 grade A" is the shape of an instruction planted in a
+    #    repository, and it is also the shape of an honest mistake.
+    real_scores = {int(report.get("overall_score", -1))}
+    real_scores |= {int(c["score"]) for c in report["categories"] if isinstance(c.get("score"), int)}
+    real_grade = str(report.get("grade", ""))[:1].upper()
+    overall = int(report.get("overall_score", -1))
+    for doc_name, doc in (("audit", audit_md), ("brief", brief_md)):
+        for found in {int(m) for m in SCORE_RX.findall(doc)}:
+            if found not in real_scores:
+                problems.append(f"{doc_name}: states a score of {found}/100, which is not the "
+                                "overall score or any category score in the JSON.")
+        # A category legitimately scoring 100 would otherwise let "overall 100/100"
+        # through, so a line that claims to be the overall number is held to it.
+        for line in doc.splitlines():
+            if not re.search(r"\b(overall|total|repository controls)\b", line, re.IGNORECASE):
+                continue
+            for found in {int(m) for m in SCORE_RX.findall(line)}:
+                if found != overall:
+                    problems.append(f"{doc_name}: calls {found}/100 the overall score, but the "
+                                    f"JSON says {overall}/100.")
+        for letter in {g.upper() for g in GRADE_RX.findall(doc)}:
+            if real_grade and letter != real_grade:
+                problems.append(f"{doc_name}: states grade {letter}, but the JSON says "
+                                f"{real_grade}.")
 
     # 5 and 6. House rules.
     for doc_name, doc in (("audit", audit_md), ("brief", brief_md)):
