@@ -1,0 +1,5 @@
+{
+  "name": "orders-demo",
+  "private": true,
+  "dependencies": { "express": "4.19.2" }
+}

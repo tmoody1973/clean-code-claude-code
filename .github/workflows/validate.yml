@@ -26,6 +26,9 @@ jobs:
       - name: Run prod-readiness-coach tests
         run: python -m unittest discover skills/prod-readiness-coach/tests
 
+      - name: Eval graders (free half of the eval suite)
+        run: python -m unittest discover evals/tests
+
       - name: Coverage grid must stay full
         run: python skills/prod-readiness-coach/scripts/coverage_grid.py --fail-under 100
 
