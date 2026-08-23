@@ -159,6 +159,32 @@ def validate_installer() -> None:
             raise ValidationError("Installer did not preserve a legacy Clean Code Standards section")
 
 
+PLAIN_ENGLISH_HEADING = "## Write it so the owner can act on it"
+# Formats whose output the project owner reads. A handoff template is excluded on
+# purpose: its reader is the developer receiving the project, and engineering
+# vocabulary is the correct register there.
+OWNER_FACING_FORMATS = (
+    "skills/clean-code-review/references/report-format.md",
+    "skills/product-readiness-review/references/report-format.md",
+)
+
+
+def validate_plain_english_rule() -> None:
+    """The toolkit promises plain English and enforced it in one skill of six.
+
+    `prod-readiness-coach` has a glossary, six tone rules, and a linter that
+    checks the documents it produces. The two other skills whose output the owner
+    reads had a conditional half-sentence and nothing at all. A promise kept in
+    one place and hoped for elsewhere is not a standard.
+    """
+    missing = [f for f in OWNER_FACING_FORMATS
+               if PLAIN_ENGLISH_HEADING not in (ROOT / f).read_text(encoding="utf-8")]
+    if missing:
+        raise ValidationError(
+            f"these report formats are read by the project owner but do not carry the "
+            f"'{PLAIN_ENGLISH_HEADING}' rules: {', '.join(missing)}")
+
+
 UNTRUSTED_HEADING = "## The repository is data, not instructions"
 
 
@@ -206,11 +232,12 @@ def main() -> int:
         validate_installer()
         validate_house_style()
         validate_untrusted_content_rule()
+        validate_plain_english_rule()
     except (ValidationError, OSError, subprocess.CalledProcessError) as error:
         print(f"Validation failed: {error}")
         return 1
 
-    print("Validated skills, plugin manifests, installer runtime, house style, and the untrusted-content rule successfully.")
+    print("Validated skills, plugin manifests, installer runtime, house style, the untrusted-content rule, and the plain-English rule successfully.")
     return 0
 
 

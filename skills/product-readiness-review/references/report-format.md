@@ -30,3 +30,27 @@ List documents inspected, commands run, results, and material areas not exercise
 ## Recommended sequence
 
 Give the smallest ordered path from current state to the stated milestone. Separate work for now, next, and later.
+
+## Write it so the owner can act on it
+
+The person reading this built the app by describing it to an AI. They are
+learning. A finding they cannot understand is a finding they cannot fix, so the
+plain-English rules are part of the output, not a nicety.
+
+1. **Never lead with jargon.** Say what it does and why it matters, then name it.
+   "Anyone who knows the URL can read this page (missing an authorization check)"
+   beats "missing authz on the handler".
+2. **Define a technical term inline, in one clause, the first time you use it.**
+   If you cannot define it in a clause, you are using it to sound precise rather
+   than to be understood.
+3. **Use a real consequence, not an abstract one.** "You will not know it broke
+   until a user emails you" lands harder than "lacks observability".
+4. **Frame a gap as the next thing to learn, not as a mistake.** The reader is
+   learning; a gap is a lesson, not a failure.
+5. **Say a win plainly.** If something is genuinely fine, say so. Do not
+   manufacture urgency to make the report feel worthwhile.
+6. **Short sentences. One idea each.** Avoid stacked clauses.
+
+The rubric this review is built on is written for an engineer, on purpose,
+because it decides what to look at. This section decides how to say it. Do not
+let the rubric's vocabulary leak into the report.

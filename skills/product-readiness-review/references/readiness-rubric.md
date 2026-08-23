@@ -2,6 +2,15 @@
 
 Apply only the dimensions relevant to the product and its risk profile.
 
+> **On the vocabulary here.** This file is written for an engineer, deliberately.
+> It decides what to look at, and precision is what makes it work; "temporal
+> coupling" names a thing that "order matters" does not. It is never shown to the
+> project owner. How to say a finding to the owner is a separate job, handled in
+> `references/report-format.md`, and its rules exist so this vocabulary does not
+> leak into the report. Do not translate this file into plain English. Translate
+> the report.
+
+
 ## Product intent and user journeys
 
 - Is the intended user and problem clear?

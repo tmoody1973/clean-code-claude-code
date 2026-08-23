@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "clean-code-toolkit",
-  "version": "3.7.0",
+  "version": "3.7.1",
   "description": "Clean-code and product-handoff tools for AI-assisted builders.",
   "owner": {
     "name": "Tarik Moody"
@@ -10,7 +10,7 @@
     {
       "name": "clean-code-toolkit",
       "description": "Review code, assess product readiness, refactor safely, and prepare a developer handoff.",
-      "version": "3.7.0",
+      "version": "3.7.1",
       "author": {
         "name": "Tarik Moody"
       },
