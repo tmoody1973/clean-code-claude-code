@@ -51,6 +51,9 @@ plain-English rules are part of the output, not a nicety.
 5. **Say a win plainly.** If something is genuinely fine, say so. Do not
    manufacture urgency to make the report feel worthwhile.
 6. **Short sentences. One idea each.** Avoid stacked clauses.
+7. **No em dashes and no en dashes.** House style is plain punctuation: a comma,
+   a colon, or a full stop. This is checked on the documents `prod-readiness-coach`
+   produces and it applies to yours too.
 
 The rubric this review is built on is written for an engineer, on purpose,
 because it decides what to look at. This section decides how to say it. Do not
