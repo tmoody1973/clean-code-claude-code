@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.7.1
+
+The last item from the original handoff: seven reference files that had never been reviewed. An independent tester had said `review-rubric.md` "reads like undefined jargon trivia and contradicts its own skill's plain-English promise."
+
+**The observation was right and the file it named was not the cause.** The rubric does use about fifteen undefined terms, including temporal coupling, characterization tests and helper fragmentation. But that file is never shown to the project owner. It decides what the review looks at, and the precision is doing work: "temporal coupling" names a specific failure that "order matters" does not. Softening a checklist to protect a reader who never sees it would cost the quality of every review and buy nothing.
+
+**The actual defect was one layer over.** `prod-readiness-coach` has a glossary, six tone rules, and a linter checking the documents it produces. The two other skills whose output the owner reads had, between them, one conditional half-sentence: "For beginner-facing reports, express evidence, impact, and recommendation as What / Why / Fix." Everyone this toolkit is built for is beginner-facing, so the condition should never have existed. A promise enforced in one skill of six and hoped for in the others is not a standard.
+
+**Both owner-facing report formats now carry the plain-English rules.** Never lead with jargon. Define a technical term inline, in one clause, the first time you use it; if you cannot define it in a clause, you are using it to sound precise rather than to be understood. Use a real consequence, not an abstract one. Frame a gap as the next thing to learn. Say a win plainly. Short sentences. `validate-toolkit.sh` fails if either format loses them.
+
+**Both rubrics now say why they are written for an engineer**, so the next reviewer translates the report rather than the checklist.
+
+**`developer-handoff` was deliberately left alone.** Its reader is the developer receiving the project, and engineering vocabulary is the correct register there. Applying a plain-English rule to it would have been the same mistake pointing the other way.
+
+See `docs/decisions/011`.
+
+Tests: 130.
+
 ## 3.7.0
 
 A review asked a question nobody had asked: what happens when the repository being audited contains text aimed at the agent auditing it.
