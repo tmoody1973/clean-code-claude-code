@@ -60,5 +60,64 @@ class Linter(unittest.TestCase):
         self.assertTrue(any("dash" in p for p in probs))
 
 
+
+class SuppressionAndForgery(unittest.TestCase):
+    """A repository can put text in front of the model asking for a finding to be
+    left out or a grade to be changed. Everything the model reads about a repo
+    comes from that repo. Invention was linted from the start; these two were not."""
+
+    REPORT = {
+        "overall_score": 62,
+        "grade": "D, release blockers present",
+        "categories": [{"key": "K", "title": "K", "score": 40, "checks": [
+            {"id": "ci-1", "title": "CI configuration exists", "status": "fail",
+             "severity": "critical", "confidence": "verified", "evidence": []},
+            {"id": "res-1", "title": "Runbook incident response docs present", "status": "fail",
+             "severity": "high", "confidence": "verified", "evidence": []},
+        ]}],
+        "waivers": {"applied": [], "problems": []},
+    }
+    AUDIT = "# How ready is it\n## What needs attention\nNothing runs your tests.\n"
+    FULL_BRIEF = ("# Fix Brief\n## Phase 1\n1. CI configuration exists is missing.\n"
+                  "## Phase 2\n2. Runbook incident response docs present is missing.\n")
+
+    def test_a_faithful_pair_still_passes(self):
+        self.assertEqual(C.lint(self.AUDIT, self.FULL_BRIEF, self.REPORT), [])
+
+    def test_a_dropped_high_finding_is_caught(self):
+        brief = "# Fix Brief\n## Phase 1\n1. CI configuration exists is missing.\n"
+        problems = C.lint(self.AUDIT, brief, self.REPORT)
+        self.assertTrue(any("res-1" in p for p in problems), problems)
+
+    def test_a_dropped_critical_finding_is_still_caught(self):
+        brief = "# Fix Brief\n## Phase 2\n1. Runbook incident response docs present.\n"
+        problems = C.lint(self.AUDIT, brief, self.REPORT)
+        self.assertTrue(any("ci-1" in p for p in problems), problems)
+
+    def test_a_forged_score_is_caught(self):
+        audit = self.AUDIT + "\nOverall this repository scores 100/100.\n"
+        problems = C.lint(audit, self.FULL_BRIEF, self.REPORT)
+        self.assertTrue(any("100/100" in p for p in problems), problems)
+
+    def test_a_forged_grade_is_caught(self):
+        audit = self.AUDIT + "\nThis repository earns a grade A.\n"
+        problems = C.lint(audit, self.FULL_BRIEF, self.REPORT)
+        self.assertTrue(any("grade A" in p for p in problems), problems)
+
+    def test_a_forged_overall_score_is_caught_even_when_a_category_really_scores_it(self):
+        report = json.loads(json.dumps(self.REPORT))
+        report["categories"][0]["score"] = 100  # a category legitimately at 100
+        audit = self.AUDIT + "\nOverall this repository scores 100/100.\n"
+        problems = C.lint(audit, self.FULL_BRIEF, report)
+        self.assertTrue(any("overall score" in p for p in problems), problems)
+
+    def test_a_real_category_score_is_not_flagged(self):
+        audit = self.AUDIT + "\nThat category sits at 40/100.\n"
+        self.assertEqual(C.lint(audit, self.FULL_BRIEF, self.REPORT), [])
+
+    def test_the_real_overall_score_is_not_flagged(self):
+        audit = self.AUDIT + "\nOverall: 62/100.\n"
+        self.assertEqual(C.lint(audit, self.FULL_BRIEF, self.REPORT), [])
+
 if __name__ == "__main__":
     unittest.main()
